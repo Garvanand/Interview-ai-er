@@ -1,0 +1,806 @@
+2025-08-31 21:56:15,284 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.25.230.129:5000
+2025-08-31 21:56:15,284 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-08-31 21:56:15,326 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 21:56:22,093 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 21:56:22,112 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-08-31 21:56:33,881 - app.services.supabase_service - INFO - Supabase client initialized successfully
+2025-08-31 21:56:35,325 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=count "HTTP/2 200 OK"
+2025-08-31 21:56:35,332 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:56:35] "GET /api/health HTTP/1.1" 200 -
+2025-08-31 21:57:07,021 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=count "HTTP/2 200 OK"
+2025-08-31 21:57:07,030 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:07] "GET /api/health HTTP/1.1" 200 -
+2025-08-31 21:57:09,106 - app.services.supabase_service - INFO - Supabase client initialized successfully
+2025-08-31 21:57:09,503 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions "HTTP/2 201 Created"
+2025-08-31 21:57:09,515 - app.services.supabase_service - INFO - Session created successfully: 79de8f1c-7ab6-4de9-8262-71c90d48d949
+2025-08-31 21:57:09,672 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 21:57:09,675 - app.services.supabase_service - INFO - Event logged successfully: session_started
+2025-08-31 21:57:09,677 - app.routes.interview - INFO - Session started successfully: 79de8f1c-7ab6-4de9-8262-71c90d48d949 for user 36897b70-7b7f-4b26-998a-3f7ffebdb39b
+2025-08-31 21:57:09,682 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:09] "[35m[1mPOST /api/start_session HTTP/1.1[0m" 201 -
+2025-08-31 21:57:12,025 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.79de8f1c-7ab6-4de9-8262-71c90d48d949 "HTTP/2 200 OK"
+2025-08-31 21:57:12,038 - app.services.gemini_service - INFO - Gemini model initialized successfully
+2025-08-31 21:57:12,868 - app.services.gemini_service - ERROR - Failed to generate question: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-08-31 21:57:13,020 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions "HTTP/2 400 Bad Request"
+2025-08-31 21:57:13,029 - app.services.supabase_service - ERROR - Failed to store question: {'message': "Could not find the 'interview_type' column of 'questions' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-08-31 21:57:13,035 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:13] "[35m[1mGET /api/get_question?session_id=79de8f1c-7ab6-4de9-8262-71c90d48d949&interview_type=Software+Engineer&difficulty=intermediate HTTP/1.1[0m" 500 -
+2025-08-31 21:57:15,356 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 21:57:15,366 - app.services.supabase_service - INFO - Event logged successfully: user_action
+2025-08-31 21:57:15,368 - app.routes.logging - INFO - Event logged successfully: user_action for session 79de8f1c-7ab6-4de9-8262-71c90d48d949
+2025-08-31 21:57:15,370 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:15] "POST /api/log_event HTTP/1.1" 200 -
+2025-08-31 21:57:17,591 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/anomalies "HTTP/2 201 Created"
+2025-08-31 21:57:17,600 - app.services.supabase_service - WARNING - Anomaly logged: low_score (severity: medium)
+2025-08-31 21:57:17,603 - app.routes.logging - WARNING - Anomaly logged: low_score (severity: medium) for session 79de8f1c-7ab6-4de9-8262-71c90d48d949
+2025-08-31 21:57:17,607 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:17] "POST /api/log_anomaly HTTP/1.1" 200 -
+2025-08-31 21:57:19,888 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.79de8f1c-7ab6-4de9-8262-71c90d48d949 "HTTP/2 200 OK"
+2025-08-31 21:57:20,093 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.79de8f1c-7ab6-4de9-8262-71c90d48d949 "HTTP/2 200 OK"
+2025-08-31 21:57:20,276 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions?select=%2A&session_id=eq.79de8f1c-7ab6-4de9-8262-71c90d48d949 "HTTP/2 200 OK"
+2025-08-31 21:57:20,494 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs?select=%2A&session_id=eq.79de8f1c-7ab6-4de9-8262-71c90d48d949 "HTTP/2 200 OK"
+2025-08-31 21:57:20,655 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/anomalies?select=%2A&session_id=eq.79de8f1c-7ab6-4de9-8262-71c90d48d949 "HTTP/2 200 OK"
+2025-08-31 21:57:20,694 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:20] "GET /api/session/79de8f1c-7ab6-4de9-8262-71c90d48d949 HTTP/1.1" 200 -
+2025-08-31 21:57:22,937 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&user_id=eq.36897b70-7b7f-4b26-998a-3f7ffebdb39b&order=start_time.desc&limit=5 "HTTP/2 200 OK"
+2025-08-31 21:57:22,946 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:22] "GET /api/user/36897b70-7b7f-4b26-998a-3f7ffebdb39b/sessions?limit=5 HTTP/1.1" 200 -
+2025-08-31 21:57:25,376 - app.services.gemini_service - ERROR - Failed to generate follow-up question: 404 models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-08-31 21:57:25,379 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:25] "POST /api/follow_up_question HTTP/1.1" 200 -
+2025-08-31 21:57:27,588 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.79de8f1c-7ab6-4de9-8262-71c90d48d949 "HTTP/2 200 OK"
+2025-08-31 21:57:27,798 - httpx - INFO - HTTP Request: PATCH https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?id=eq.79de8f1c-7ab6-4de9-8262-71c90d48d949 "HTTP/2 200 OK"
+2025-08-31 21:57:27,799 - app.services.supabase_service - INFO - Session 79de8f1c-7ab6-4de9-8262-71c90d48d949 ended successfully
+2025-08-31 21:57:28,043 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 21:57:28,053 - app.services.supabase_service - INFO - Event logged successfully: session_ended
+2025-08-31 21:57:28,053 - app.routes.interview - INFO - Session 79de8f1c-7ab6-4de9-8262-71c90d48d949 ended successfully
+2025-08-31 21:57:28,056 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:28] "POST /api/end_session/79de8f1c-7ab6-4de9-8262-71c90d48d949 HTTP/1.1" 200 -
+2025-08-31 21:57:30,117 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:30] "GET /api/metrics HTTP/1.1" 200 -
+2025-08-31 21:57:32,164 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:32] "[31m[1mPOST /api/start_session HTTP/1.1[0m" 400 -
+2025-08-31 21:57:34,228 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:34] "[31m[1mPOST /api/start_session HTTP/1.1[0m" 400 -
+2025-08-31 21:57:36,285 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:36] "[31m[1mPOST /api/submit_answer HTTP/1.1[0m" 400 -
+2025-08-31 21:57:38,335 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:57:38] "[31m[1mPOST /api/log_event HTTP/1.1[0m" 400 -
+2025-08-31 21:58:08,363 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-08-31 21:58:08,364 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-08-31 21:58:08,366 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-08-31 21:58:09,222 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 21:58:11,242 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 21:58:11,246 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-08-31 21:58:19,406 - app.services.supabase_service - INFO - Supabase client initialized successfully
+2025-08-31 21:58:19,850 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.79de8f1c-7ab6-4de9-8262-71c90d48d949 "HTTP/2 200 OK"
+2025-08-31 21:58:19,857 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:58:19] "[31m[1mGET /api/get_question?session_id=79de8f1c-7ab6-4de9-8262-71c90d48d949&interview_type=Software%20Engineer&difficulty=intermediate HTTP/1.1[0m" 400 -
+2025-08-31 21:59:08,690 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions "HTTP/2 201 Created"
+2025-08-31 21:59:08,696 - app.services.supabase_service - INFO - Session created successfully: 3f915b76-3f4d-4a79-abb5-cf10d7cf2741
+2025-08-31 21:59:08,842 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 21:59:08,843 - app.services.supabase_service - INFO - Event logged successfully: session_started
+2025-08-31 21:59:08,843 - app.routes.interview - INFO - Session started successfully: 3f915b76-3f4d-4a79-abb5-cf10d7cf2741 for user 36897b70-7b7f-4b26-998a-3f7ffebdb39b
+2025-08-31 21:59:08,844 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:59:08] "[35m[1mPOST /api/start_session HTTP/1.1[0m" 201 -
+2025-08-31 21:59:32,604 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.3f915b76-3f4d-4a79-abb5-cf10d7cf2741 "HTTP/2 200 OK"
+2025-08-31 21:59:32,607 - app.services.gemini_service - INFO - Gemini model initialized successfully
+2025-08-31 21:59:33,389 - app.services.gemini_service - ERROR - Failed to generate question: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, retry_delay {
+  seconds: 27
+}
+]
+2025-08-31 21:59:33,575 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions "HTTP/2 400 Bad Request"
+2025-08-31 21:59:33,578 - app.services.supabase_service - ERROR - Failed to store question: {'message': "Could not find the 'interview_type' column of 'questions' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-08-31 21:59:33,581 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 21:59:33] "[35m[1mGET /api/get_question?session_id=3f915b76-3f4d-4a79-abb5-cf10d7cf2741&interview_type=Software%20Engineer&difficulty=intermediate HTTP/1.1[0m" 500 -
+2025-08-31 22:01:34,838 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_db_schema.py', reloading
+2025-08-31 22:01:35,587 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 22:01:38,554 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 22:01:38,564 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-08-31 22:04:12,494 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.25.230.129:5000
+2025-08-31 22:04:12,494 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-08-31 22:04:12,510 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 22:04:15,180 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 22:04:15,183 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-08-31 22:04:24,558 - app.services.supabase_service - INFO - Supabase client initialized successfully
+2025-08-31 22:04:25,334 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=count "HTTP/2 206 Partial Content"
+2025-08-31 22:04:25,342 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:04:25] "GET /api/health HTTP/1.1" 200 -
+2025-08-31 22:05:04,351 - app.services.supabase_service - INFO - Supabase client initialized successfully
+2025-08-31 22:05:04,834 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions "HTTP/2 201 Created"
+2025-08-31 22:05:05,121 - app.services.supabase_service - INFO - Session created successfully: f0dda647-13d1-49e8-bfc4-fa0e57745b5a
+2025-08-31 22:05:05,288 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:05:05,290 - app.services.supabase_service - INFO - Event logged successfully: session_started
+2025-08-31 22:05:05,292 - app.routes.interview - INFO - Session started successfully: f0dda647-13d1-49e8-bfc4-fa0e57745b5a for user 36897b70-7b7f-4b26-998a-3f7ffebdb39b
+2025-08-31 22:05:05,294 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:05:05] "[35m[1mPOST /api/start_session HTTP/1.1[0m" 201 -
+2025-08-31 22:05:14,877 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.f0dda647-13d1-49e8-bfc4-fa0e57745b5a "HTTP/2 200 OK"
+2025-08-31 22:05:14,882 - app.services.gemini_service - INFO - Gemini model initialized successfully
+2025-08-31 22:05:15,880 - app.services.gemini_service - ERROR - Failed to generate question: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, retry_delay {
+  seconds: 44
+}
+]
+2025-08-31 22:05:16,284 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions "HTTP/2 201 Created"
+2025-08-31 22:05:16,289 - app.services.supabase_service - INFO - Question stored successfully: 08474d31-d6e8-4331-9793-ec8c44b737e0
+2025-08-31 22:05:16,427 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:05:16,429 - app.services.supabase_service - INFO - Event logged successfully: question_generated
+2025-08-31 22:05:16,430 - app.routes.interview - INFO - Question generated successfully: 08474d31-d6e8-4331-9793-ec8c44b737e0 for session f0dda647-13d1-49e8-bfc4-fa0e57745b5a
+2025-08-31 22:05:16,433 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:05:16] "GET /api/get_question?session_id=f0dda647-13d1-49e8-bfc4-fa0e57745b5a&interview_type=Software%20Engineer&difficulty=intermediate HTTP/1.1" 200 -
+2025-08-31 22:06:35,754 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=count "HTTP/2 206 Partial Content"
+2025-08-31 22:06:36,033 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:06:36] "GET /api/health HTTP/1.1" 200 -
+2025-08-31 22:06:38,334 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions "HTTP/2 201 Created"
+2025-08-31 22:06:38,339 - app.services.supabase_service - INFO - Session created successfully: 7bda2211-5a2a-4a13-8fc6-2732443a61d8
+2025-08-31 22:06:38,484 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:06:38,486 - app.services.supabase_service - INFO - Event logged successfully: session_started
+2025-08-31 22:06:38,487 - app.routes.interview - INFO - Session started successfully: 7bda2211-5a2a-4a13-8fc6-2732443a61d8 for user 36897b70-7b7f-4b26-998a-3f7ffebdb39b
+2025-08-31 22:06:38,488 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:06:38] "[35m[1mPOST /api/start_session HTTP/1.1[0m" 201 -
+2025-08-31 22:06:40,696 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.7bda2211-5a2a-4a13-8fc6-2732443a61d8 "HTTP/2 200 OK"
+2025-08-31 22:06:41,247 - app.services.gemini_service - ERROR - Failed to generate question: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, retry_delay {
+  seconds: 19
+}
+]
+2025-08-31 22:06:41,404 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions "HTTP/2 201 Created"
+2025-08-31 22:06:41,410 - app.services.supabase_service - INFO - Question stored successfully: b81db5b2-4502-468c-b3a7-2fc86ea7a9f6
+2025-08-31 22:06:41,647 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:06:41,651 - app.services.supabase_service - INFO - Event logged successfully: question_generated
+2025-08-31 22:06:41,652 - app.routes.interview - INFO - Question generated successfully: b81db5b2-4502-468c-b3a7-2fc86ea7a9f6 for session 7bda2211-5a2a-4a13-8fc6-2732443a61d8
+2025-08-31 22:06:41,654 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:06:41] "GET /api/get_question?session_id=7bda2211-5a2a-4a13-8fc6-2732443a61d8&interview_type=Software+Engineer&difficulty=intermediate HTTP/1.1" 200 -
+2025-08-31 22:06:43,871 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.7bda2211-5a2a-4a13-8fc6-2732443a61d8 "HTTP/2 200 OK"
+2025-08-31 22:06:44,083 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions?select=%2A&session_id=eq.7bda2211-5a2a-4a13-8fc6-2732443a61d8&order=created_at.asc "HTTP/2 200 OK"
+2025-08-31 22:06:44,624 - app.services.gemini_service - ERROR - Failed to evaluate answer: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, retry_delay {
+  seconds: 15
+}
+]
+2025-08-31 22:06:44,778 - httpx - INFO - HTTP Request: PATCH https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions?id=eq.b81db5b2-4502-468c-b3a7-2fc86ea7a9f6 "HTTP/2 400 Bad Request"
+2025-08-31 22:06:44,817 - app.services.supabase_service - ERROR - Failed to store answer: {'message': "Could not find the 'question_id' column of 'questions' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-08-31 22:06:44,818 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:06:44] "[35m[1mPOST /api/submit_answer HTTP/1.1[0m" 500 -
+2025-08-31 22:06:48,649 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:06:48,657 - app.services.supabase_service - INFO - Event logged successfully: user_action
+2025-08-31 22:06:48,658 - app.routes.logging - INFO - Event logged successfully: user_action for session 7bda2211-5a2a-4a13-8fc6-2732443a61d8
+2025-08-31 22:06:48,659 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:06:48] "POST /api/log_event HTTP/1.1" 200 -
+2025-08-31 22:06:52,087 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/anomalies "HTTP/2 201 Created"
+2025-08-31 22:06:52,091 - app.services.supabase_service - WARNING - Anomaly logged: low_score (severity: medium)
+2025-08-31 22:06:52,091 - app.routes.logging - WARNING - Anomaly logged: low_score (severity: medium) for session 7bda2211-5a2a-4a13-8fc6-2732443a61d8
+2025-08-31 22:06:52,091 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:06:52] "POST /api/log_anomaly HTTP/1.1" 200 -
+2025-08-31 22:06:54,402 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.7bda2211-5a2a-4a13-8fc6-2732443a61d8 "HTTP/2 200 OK"
+2025-08-31 22:06:54,822 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.7bda2211-5a2a-4a13-8fc6-2732443a61d8 "HTTP/2 200 OK"
+2025-08-31 22:06:55,287 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions?select=%2A&session_id=eq.7bda2211-5a2a-4a13-8fc6-2732443a61d8 "HTTP/2 200 OK"
+2025-08-31 22:06:55,447 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs?select=%2A&session_id=eq.7bda2211-5a2a-4a13-8fc6-2732443a61d8 "HTTP/2 200 OK"
+2025-08-31 22:06:55,583 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/anomalies?select=%2A&session_id=eq.7bda2211-5a2a-4a13-8fc6-2732443a61d8 "HTTP/2 200 OK"
+2025-08-31 22:06:55,586 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:06:55] "GET /api/session/7bda2211-5a2a-4a13-8fc6-2732443a61d8 HTTP/1.1" 200 -
+2025-08-31 22:06:57,776 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&user_id=eq.36897b70-7b7f-4b26-998a-3f7ffebdb39b&order=start_time.desc&limit=5 "HTTP/2 200 OK"
+2025-08-31 22:06:57,784 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:06:57] "GET /api/user/36897b70-7b7f-4b26-998a-3f7ffebdb39b/sessions?limit=5 HTTP/1.1" 200 -
+2025-08-31 22:07:00,182 - app.services.gemini_service - ERROR - Failed to generate follow-up question: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, retry_delay {
+}
+]
+2025-08-31 22:07:00,183 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:07:00] "POST /api/follow_up_question HTTP/1.1" 200 -
+2025-08-31 22:07:02,419 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.7bda2211-5a2a-4a13-8fc6-2732443a61d8 "HTTP/2 200 OK"
+2025-08-31 22:07:02,783 - httpx - INFO - HTTP Request: PATCH https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?id=eq.7bda2211-5a2a-4a13-8fc6-2732443a61d8 "HTTP/2 200 OK"
+2025-08-31 22:07:02,785 - app.services.supabase_service - INFO - Session 7bda2211-5a2a-4a13-8fc6-2732443a61d8 ended successfully
+2025-08-31 22:07:02,947 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:07:02,949 - app.services.supabase_service - INFO - Event logged successfully: session_ended
+2025-08-31 22:07:02,950 - app.routes.interview - INFO - Session 7bda2211-5a2a-4a13-8fc6-2732443a61d8 ended successfully
+2025-08-31 22:07:02,950 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:07:02] "POST /api/end_session/7bda2211-5a2a-4a13-8fc6-2732443a61d8 HTTP/1.1" 200 -
+2025-08-31 22:07:04,996 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:07:04] "GET /api/metrics HTTP/1.1" 200 -
+2025-08-31 22:07:07,058 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:07:07] "[31m[1mPOST /api/start_session HTTP/1.1[0m" 400 -
+2025-08-31 22:07:09,110 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:07:09] "[31m[1mPOST /api/start_session HTTP/1.1[0m" 400 -
+2025-08-31 22:07:11,171 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:07:11] "[31m[1mPOST /api/submit_answer HTTP/1.1[0m" 400 -
+2025-08-31 22:07:13,235 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:07:13] "[31m[1mPOST /api/log_event HTTP/1.1[0m" 400 -
+2025-08-31 22:07:39,390 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\supabase_service.py', reloading
+2025-08-31 22:07:39,393 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\supabase_service.py', reloading
+2025-08-31 22:07:39,393 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\supabase_service.py', reloading
+2025-08-31 22:07:40,165 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 22:07:42,311 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 22:07:42,318 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-08-31 22:11:56,974 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.25.230.129:5000
+2025-08-31 22:11:56,975 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-08-31 22:11:57,009 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 22:11:58,966 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 22:11:58,971 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-08-31 22:12:06,486 - app.services.supabase_service - INFO - Supabase client initialized successfully
+2025-08-31 22:12:06,915 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions "HTTP/2 201 Created"
+2025-08-31 22:12:06,919 - app.services.supabase_service - INFO - Session created successfully: 82eb78cf-ac06-47bd-a699-cc5f71b85460
+2025-08-31 22:12:07,064 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:12:07,067 - app.services.supabase_service - INFO - Event logged successfully: session_started
+2025-08-31 22:12:07,068 - app.routes.interview - INFO - Session started successfully: 82eb78cf-ac06-47bd-a699-cc5f71b85460 for user 36897b70-7b7f-4b26-998a-3f7ffebdb39b
+2025-08-31 22:12:07,074 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:12:07] "[35m[1mPOST /api/start_session HTTP/1.1[0m" 201 -
+2025-08-31 22:12:25,452 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.82eb78cf-ac06-47bd-a699-cc5f71b85460 "HTTP/2 200 OK"
+2025-08-31 22:12:25,461 - app.services.gemini_service - INFO - Gemini model initialized successfully
+2025-08-31 22:12:26,077 - app.services.gemini_service - ERROR - Failed to generate question: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, retry_delay {
+  seconds: 34
+}
+]
+2025-08-31 22:12:26,209 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions "HTTP/2 201 Created"
+2025-08-31 22:12:26,215 - app.services.supabase_service - INFO - Question stored successfully: 14c68007-843d-4a42-ae63-70ffee23567a
+2025-08-31 22:12:26,354 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:12:26,356 - app.services.supabase_service - INFO - Event logged successfully: question_generated
+2025-08-31 22:12:26,358 - app.routes.interview - INFO - Question generated successfully: 14c68007-843d-4a42-ae63-70ffee23567a for session 82eb78cf-ac06-47bd-a699-cc5f71b85460
+2025-08-31 22:12:26,361 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:12:26] "GET /api/get_question?session_id=82eb78cf-ac06-47bd-a699-cc5f71b85460&interview_type=Software%20Engineer&difficulty=intermediate HTTP/1.1" 200 -
+2025-08-31 22:15:40,950 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.82eb78cf-ac06-47bd-a699-cc5f71b85460 "HTTP/2 200 OK"
+2025-08-31 22:15:41,139 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions?select=%2A&session_id=eq.82eb78cf-ac06-47bd-a699-cc5f71b85460&order=created_at.asc "HTTP/2 200 OK"
+2025-08-31 22:15:41,840 - app.services.gemini_service - ERROR - Failed to evaluate answer: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, retry_delay {
+  seconds: 18
+}
+]
+2025-08-31 22:15:42,050 - httpx - INFO - HTTP Request: PATCH https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions?id=eq.14c68007-843d-4a42-ae63-70ffee23567a "HTTP/2 200 OK"
+2025-08-31 22:15:42,055 - app.services.supabase_service - INFO - Answer stored successfully for question 14c68007-843d-4a42-ae63-70ffee23567a
+2025-08-31 22:15:42,238 - httpx - INFO - HTTP Request: PATCH https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?id=eq.82eb78cf-ac06-47bd-a699-cc5f71b85460 "HTTP/2 200 OK"
+2025-08-31 22:15:42,242 - app.services.supabase_service - INFO - Session 82eb78cf-ac06-47bd-a699-cc5f71b85460 score updated to 38.0
+2025-08-31 22:15:42,396 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:15:42,398 - app.services.supabase_service - INFO - Event logged successfully: answer_submitted
+2025-08-31 22:15:42,398 - app.routes.interview - INFO - Answer submitted successfully for question 14c68007-843d-4a42-ae63-70ffee23567a
+2025-08-31 22:15:42,399 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:15:42] "POST /api/submit_answer HTTP/1.1" 200 -
+2025-08-31 22:15:55,750 - app.services.supabase_service - INFO - Supabase client initialized successfully
+2025-08-31 22:15:57,017 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=count "HTTP/2 206 Partial Content"
+2025-08-31 22:15:57,025 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:15:57] "GET /api/health HTTP/1.1" 200 -
+2025-08-31 22:15:59,279 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions "HTTP/2 201 Created"
+2025-08-31 22:15:59,290 - app.services.supabase_service - INFO - Session created successfully: 7fe3ec54-7a29-4122-bde2-131d7cb9558f
+2025-08-31 22:15:59,475 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:15:59,477 - app.services.supabase_service - INFO - Event logged successfully: session_started
+2025-08-31 22:15:59,478 - app.routes.interview - INFO - Session started successfully: 7fe3ec54-7a29-4122-bde2-131d7cb9558f for user 36897b70-7b7f-4b26-998a-3f7ffebdb39b
+2025-08-31 22:15:59,478 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:15:59] "[35m[1mPOST /api/start_session HTTP/1.1[0m" 201 -
+2025-08-31 22:16:01,722 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.7fe3ec54-7a29-4122-bde2-131d7cb9558f "HTTP/2 200 OK"
+2025-08-31 22:16:02,084 - app.services.gemini_service - ERROR - Failed to generate question: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, retry_delay {
+  seconds: 58
+}
+]
+2025-08-31 22:16:02,253 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions "HTTP/2 201 Created"
+2025-08-31 22:16:02,258 - app.services.supabase_service - INFO - Question stored successfully: f996e267-6835-4e51-a51f-a7c615909b80
+2025-08-31 22:16:02,611 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:16:02,613 - app.services.supabase_service - INFO - Event logged successfully: question_generated
+2025-08-31 22:16:02,613 - app.routes.interview - INFO - Question generated successfully: f996e267-6835-4e51-a51f-a7c615909b80 for session 7fe3ec54-7a29-4122-bde2-131d7cb9558f
+2025-08-31 22:16:02,615 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:02] "GET /api/get_question?session_id=7fe3ec54-7a29-4122-bde2-131d7cb9558f&interview_type=Software+Engineer&difficulty=intermediate HTTP/1.1" 200 -
+2025-08-31 22:16:04,826 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.7fe3ec54-7a29-4122-bde2-131d7cb9558f "HTTP/2 200 OK"
+2025-08-31 22:16:05,003 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions?select=%2A&session_id=eq.7fe3ec54-7a29-4122-bde2-131d7cb9558f&order=created_at.asc "HTTP/2 200 OK"
+2025-08-31 22:16:05,349 - app.services.gemini_service - ERROR - Failed to evaluate answer: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, retry_delay {
+  seconds: 55
+}
+]
+2025-08-31 22:16:05,523 - httpx - INFO - HTTP Request: PATCH https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions?id=eq.f996e267-6835-4e51-a51f-a7c615909b80 "HTTP/2 200 OK"
+2025-08-31 22:16:05,525 - app.services.supabase_service - INFO - Answer stored successfully for question f996e267-6835-4e51-a51f-a7c615909b80
+2025-08-31 22:16:06,091 - httpx - INFO - HTTP Request: PATCH https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?id=eq.7fe3ec54-7a29-4122-bde2-131d7cb9558f "HTTP/2 200 OK"
+2025-08-31 22:16:06,093 - app.services.supabase_service - INFO - Session 7fe3ec54-7a29-4122-bde2-131d7cb9558f score updated to 38.0
+2025-08-31 22:16:06,279 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:16:06,280 - app.services.supabase_service - INFO - Event logged successfully: answer_submitted
+2025-08-31 22:16:06,280 - app.routes.interview - INFO - Answer submitted successfully for question f996e267-6835-4e51-a51f-a7c615909b80
+2025-08-31 22:16:06,281 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:06] "POST /api/submit_answer HTTP/1.1" 200 -
+2025-08-31 22:16:08,576 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:16:08,588 - app.services.supabase_service - INFO - Event logged successfully: user_action
+2025-08-31 22:16:08,589 - app.routes.logging - INFO - Event logged successfully: user_action for session 7fe3ec54-7a29-4122-bde2-131d7cb9558f
+2025-08-31 22:16:08,590 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:08] "POST /api/log_event HTTP/1.1" 200 -
+2025-08-31 22:16:11,105 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/anomalies "HTTP/2 201 Created"
+2025-08-31 22:16:11,109 - app.services.supabase_service - WARNING - Anomaly logged: low_score (severity: medium)
+2025-08-31 22:16:11,109 - app.routes.logging - WARNING - Anomaly logged: low_score (severity: medium) for session 7fe3ec54-7a29-4122-bde2-131d7cb9558f
+2025-08-31 22:16:11,110 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:11] "POST /api/log_anomaly HTTP/1.1" 200 -
+2025-08-31 22:16:13,559 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.7fe3ec54-7a29-4122-bde2-131d7cb9558f "HTTP/2 200 OK"
+2025-08-31 22:16:13,875 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.7fe3ec54-7a29-4122-bde2-131d7cb9558f "HTTP/2 200 OK"
+2025-08-31 22:16:14,022 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/questions?select=%2A&session_id=eq.7fe3ec54-7a29-4122-bde2-131d7cb9558f "HTTP/2 200 OK"
+2025-08-31 22:16:14,170 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs?select=%2A&session_id=eq.7fe3ec54-7a29-4122-bde2-131d7cb9558f "HTTP/2 200 OK"
+2025-08-31 22:16:14,333 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/anomalies?select=%2A&session_id=eq.7fe3ec54-7a29-4122-bde2-131d7cb9558f "HTTP/2 200 OK"
+2025-08-31 22:16:14,336 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:14] "GET /api/session/7fe3ec54-7a29-4122-bde2-131d7cb9558f HTTP/1.1" 200 -
+2025-08-31 22:16:16,549 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&user_id=eq.36897b70-7b7f-4b26-998a-3f7ffebdb39b&order=start_time.desc&limit=5 "HTTP/2 200 OK"
+2025-08-31 22:16:16,567 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:16] "GET /api/user/36897b70-7b7f-4b26-998a-3f7ffebdb39b/sessions?limit=5 HTTP/1.1" 200 -
+2025-08-31 22:16:19,066 - app.services.gemini_service - ERROR - Failed to generate follow-up question: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-1.5-pro"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, retry_delay {
+  seconds: 41
+}
+]
+2025-08-31 22:16:19,069 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:19] "POST /api/follow_up_question HTTP/1.1" 200 -
+2025-08-31 22:16:21,265 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=%2A&id=eq.7fe3ec54-7a29-4122-bde2-131d7cb9558f "HTTP/2 200 OK"
+2025-08-31 22:16:21,409 - httpx - INFO - HTTP Request: PATCH https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?id=eq.7fe3ec54-7a29-4122-bde2-131d7cb9558f "HTTP/2 200 OK"
+2025-08-31 22:16:21,414 - app.services.supabase_service - INFO - Session 7fe3ec54-7a29-4122-bde2-131d7cb9558f ended successfully
+2025-08-31 22:16:21,556 - httpx - INFO - HTTP Request: POST https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/logs "HTTP/2 201 Created"
+2025-08-31 22:16:21,563 - app.services.supabase_service - INFO - Event logged successfully: session_ended
+2025-08-31 22:16:21,565 - app.routes.interview - INFO - Session 7fe3ec54-7a29-4122-bde2-131d7cb9558f ended successfully
+2025-08-31 22:16:21,569 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:21] "POST /api/end_session/7fe3ec54-7a29-4122-bde2-131d7cb9558f HTTP/1.1" 200 -
+2025-08-31 22:16:23,621 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:23] "GET /api/metrics HTTP/1.1" 200 -
+2025-08-31 22:16:25,686 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:25] "[31m[1mPOST /api/start_session HTTP/1.1[0m" 400 -
+2025-08-31 22:16:27,737 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:27] "[31m[1mPOST /api/start_session HTTP/1.1[0m" 400 -
+2025-08-31 22:16:29,788 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:29] "[31m[1mPOST /api/submit_answer HTTP/1.1[0m" 400 -
+2025-08-31 22:16:31,843 - werkzeug - INFO - 127.0.0.1 - - [31/Aug/2025 22:16:31] "[31m[1mPOST /api/log_event HTTP/1.1[0m" 400 -
+2025-08-31 22:16:47,785 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-08-31 22:16:47,787 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-08-31 22:16:47,794 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-08-31 22:16:47,801 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_db_schema.py', reloading
+2025-08-31 22:16:47,805 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\supabase_service.py', reloading
+2025-08-31 22:16:47,807 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_db_schema.py', reloading
+2025-08-31 22:16:47,809 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\supabase_service.py', reloading
+2025-08-31 22:16:48,793 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 22:16:51,741 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 22:16:51,746 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-08-31 22:30:26,154 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_supabase.py', reloading
+2025-08-31 22:30:26,446 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_api.py', reloading
+2025-08-31 22:30:27,410 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 22:30:34,056 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 22:30:34,065 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-08-31 22:30:49,507 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\security_service.py', reloading
+2025-08-31 22:30:50,174 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 22:30:53,515 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 22:30:53,521 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-08-31 22:33:14,866 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\security_service.py', reloading
+2025-08-31 22:33:16,292 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 22:33:21,378 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 22:33:21,396 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-08-31 22:38:06,457 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-08-31 22:38:06,460 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-08-31 22:38:07,506 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-31 22:38:10,966 - werkzeug - WARNING -  * Debugger is active!
+2025-08-31 22:38:10,974 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-08-31 22:41:41,176 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-08-31 22:41:42,649 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-09-01 00:15:39,043 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.25.230.129:5000
+2025-09-01 00:15:39,044 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-09-01 00:15:39,067 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-09-01 00:15:41,273 - werkzeug - WARNING -  * Debugger is active!
+2025-09-01 00:15:41,280 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-09-01 00:15:51,833 - app.services.supabase_service - INFO - Supabase client initialized successfully
+2025-09-01 00:15:53,074 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=count "HTTP/2 206 Partial Content"
+2025-09-01 00:15:53,080 - werkzeug - INFO - 127.0.0.1 - - [01/Sep/2025 00:15:53] "GET /api/health HTTP/1.1" 200 -
+2025-09-01 00:16:07,130 - werkzeug - INFO - 127.0.0.1 - - [01/Sep/2025 00:16:07] "GET /api/metrics HTTP/1.1" 200 -
+2025-09-01 00:17:42,041 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_enhanced_backend.py', reloading
+2025-09-01 00:17:43,155 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-09-01 00:17:46,098 - werkzeug - WARNING -  * Debugger is active!
+2025-09-01 00:17:46,105 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-09-01 00:19:36,920 - app.services.supabase_service - INFO - Supabase client initialized successfully
+2025-09-01 00:19:37,465 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=count "HTTP/2 206 Partial Content"
+2025-09-01 00:19:37,478 - werkzeug - INFO - 127.0.0.1 - - [01/Sep/2025 00:19:37] "GET /api/health HTTP/1.1" 200 -
+2025-09-01 00:19:39,529 - werkzeug - INFO - 127.0.0.1 - - [01/Sep/2025 00:19:39] "GET /api/metrics HTTP/1.1" 200 -
+2025-09-01 00:19:41,575 - werkzeug - INFO - 127.0.0.1 - - [01/Sep/2025 00:19:41] "[31m[1mPOST /api/start_session HTTP/1.1[0m" 400 -
+2025-09-01 00:24:29,838 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=count "HTTP/2 206 Partial Content"
+2025-09-01 00:24:29,845 - werkzeug - INFO - 127.0.0.1 - - [01/Sep/2025 00:24:29] "GET /api/health HTTP/1.1" 200 -
+2025-09-01 00:31:00,750 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-09-01 00:31:00,752 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-09-01 00:31:00,753 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-09-01 00:31:01,489 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-09-01 00:31:05,596 - werkzeug - WARNING -  * Debugger is active!
+2025-09-01 00:31:05,602 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-09-01 00:31:17,658 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_full_integration.py', reloading
+2025-09-01 00:31:18,332 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-09-01 00:31:21,879 - werkzeug - WARNING -  * Debugger is active!
+2025-09-01 00:31:21,884 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-09-01 00:31:43,019 - app.services.supabase_service - INFO - Supabase client initialized successfully
+2025-09-01 00:31:43,596 - httpx - INFO - HTTP Request: GET https://foddpchqafpjhkdmpwie.supabase.co/rest/v1/sessions?select=count "HTTP/2 206 Partial Content"
+2025-09-01 00:31:43,602 - werkzeug - INFO - 127.0.0.1 - - [01/Sep/2025 00:31:43] "GET /api/health HTTP/1.1" 200 -
+2025-09-01 00:31:49,721 - werkzeug - INFO - 127.0.0.1 - - [01/Sep/2025 00:31:49] "GET /api/metrics HTTP/1.1" 200 -
+2025-09-01 00:31:51,761 - werkzeug - INFO - 127.0.0.1 - - [01/Sep/2025 00:31:51] "[31m[1mPOST /api/start_session HTTP/1.1[0m" 400 -
+2025-09-01 00:31:53,808 - werkzeug - INFO - 127.0.0.1 - - [01/Sep/2025 00:31:53] "OPTIONS /api/health HTTP/1.1" 200 -
+2025-09-01 00:33:40,659 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-09-01 00:33:40,662 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_full_integration.py', reloading
+2025-09-01 00:33:40,665 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\gemini_service.py', reloading
+2025-09-01 00:33:40,665 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_full_integration.py', reloading
+2025-09-01 00:33:41,397 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-09-01 00:33:44,683 - werkzeug - WARNING -  * Debugger is active!
+2025-09-01 00:33:44,689 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-09-01 01:09:45,195 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_supabase.py', reloading
+2025-09-01 01:09:45,208 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_comprehensive.py', reloading
+2025-09-01 01:09:45,209 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_api.py', reloading
+2025-09-01 01:09:45,210 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\deploy.py', reloading
+2025-09-01 01:09:45,211 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_db_schema.py', reloading
+2025-09-01 01:09:45,212 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\debug_db.py', reloading
+2025-09-01 01:09:45,213 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\config.py', reloading
+2025-09-01 01:09:45,214 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_uuid.py', reloading
+2025-09-01 01:09:45,214 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_real_user.py', reloading
+2025-09-01 01:09:45,218 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\__init__.py', reloading
+2025-09-01 01:09:45,219 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\routes\\logging.py', reloading
+2025-09-01 01:09:45,220 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\routes\\__init__.py', reloading
+2025-09-01 01:09:45,221 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\models\\__init__.py', reloading
+2025-09-01 01:09:45,221 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\services\\__init__.py', reloading
+2025-09-01 01:09:46,570 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-09-01 04:01:33,430 - werkzeug - WARNING -  * Debugger is active!
+2025-09-01 04:01:33,438 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-09-01 10:08:46,300 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_enhanced_backend.py', reloading
+2025-09-01 10:08:47,061 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-09-01 10:08:54,557 - werkzeug - WARNING -  * Debugger is active!
+2025-09-01 10:08:54,568 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-09-02 00:52:45,198 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_enhanced_backend.py', reloading
+2025-09-02 00:52:46,649 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-09-02 00:52:56,246 - werkzeug - WARNING -  * Debugger is active!
+2025-09-02 00:52:56,265 - werkzeug - INFO -  * Debugger PIN: 136-906-985
+2025-09-02 01:11:44,722 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_comprehensive.py', reloading
+2025-09-02 01:11:44,738 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_full_integration.py', reloading
+2025-09-02 01:11:44,741 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_supabase.py', reloading
+2025-09-02 01:11:44,741 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\debug_db.py', reloading
+2025-09-02 01:11:44,742 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\deploy.py', reloading
+2025-09-02 01:11:44,743 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_db_schema.py', reloading
+2025-09-02 01:11:44,744 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_api.py', reloading
+2025-09-02 01:11:44,746 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\config.py', reloading
+2025-09-02 01:11:44,749 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_uuid.py', reloading
+2025-09-02 01:11:44,751 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\test_real_user.py', reloading
+2025-09-02 01:11:44,754 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\routes\\__init__.py', reloading
+2025-09-02 01:11:44,758 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\__init__.py', reloading
+2025-09-02 01:11:44,760 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\routes\\logging.py', reloading
+2025-09-02 01:11:44,761 - werkzeug - INFO -  * Detected change in 'C:\\Users\\GARV ANAND\\Downloads\\Backend(intervieweee)\\app\\routes\\interview.py', reloading
+2025-09-02 01:11:46,678 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-09-02 01:11:53,929 - werkzeug - WARNING -  * Debugger is active!
+2025-09-02 01:11:53,941 - werkzeug - INFO -  * Debugger PIN: 136-906-985

@@ -1,0 +1,64 @@
+# Cursor Project Intelligence - Mock Interview Platform Backend
+
+## Project Overview
+This is a Flask backend for a mock interview platform that integrates with Supabase for data storage and Google Gemini AI for interview question generation and evaluation.
+
+## Key Implementation Patterns
+
+### 1. Flask Application Structure
+- Use Flask app factory pattern in `app/__init__.py`
+- Organize routes using blueprints for modularity
+- Separate business logic into service modules
+- Keep main `app.py` minimal and focused on running the app
+
+### 2. Environment Management
+- All sensitive data goes in `.env` file (never commit this)
+- Provide `.env.example` with all required variables
+- Use python-dotenv for environment variable loading
+- Validate required environment variables on startup
+
+### 3. Supabase Integration
+- Use supabase-py client for all database operations
+- Implement proper error handling for database failures
+- Use environment variables for SUPABASE_URL and SUPABASE_KEY
+- Structure database operations as service functions
+
+### 4. Gemini AI Service
+- Create dedicated `gemini_service.py` module
+- Implement retry logic for API calls
+- Use environment variable for GEMINI_API_KEY
+- Structure prompts for consistent question generation and evaluation
+
+### 5. API Design Principles
+- All endpoints return JSON responses
+- Use consistent error response format
+- Implement proper HTTP status codes
+- Enable CORS for Next.js frontend integration
+- Validate all input data
+
+### 6. Code Quality Standards
+- Keep functions focused and single-purpose
+- Use descriptive variable and function names
+- Add docstrings for complex functions
+- Implement proper error handling throughout
+- Structure code for easy testing
+
+## Database Schema
+- **users**: Supabase Auth users (handled automatically)
+- **sessions**: Interview sessions with user_id, type, timing, and scores
+- **questions**: Individual questions within sessions
+- **logs**: Event logging for monitoring and debugging
+- **anomalies**: Detection of suspicious behavior during interviews
+
+## API Endpoints
+- `POST /api/start_session` - Create new interview session
+- `GET /api/get_question` - Generate and retrieve interview question
+- `POST /api/submit_answer` - Submit answer and get evaluation
+- `POST /api/log_event` - Log system events and anomalies
+
+## Development Workflow
+1. Always work in virtual environment
+2. Test endpoints after implementation
+3. Update Memory Bank when making significant changes
+4. Keep code minimal and production-ready
+5. Document any deviations from standard patterns
