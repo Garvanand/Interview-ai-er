@@ -22,7 +22,7 @@ export default function CodeEditor({
 }: CodeEditorProps) {
   const editorRef = useRef<any>(null)
 
-  const handleEditorDidMount = (editor: any) => {
+  const handleEditorDidMount = (editor: any, monaco: any) => {
     editorRef.current = editor
     
     // Set editor options

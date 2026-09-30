@@ -21,8 +21,14 @@ export interface Question {
   evaluation_details?: any
   code_text?: string
   programming_language?: string
-  created_at: string
+  created_at?: string
   updated_at?: string
+  difficulty?: string
+  skill_focus?: string
+  is_follow_up?: boolean
+  parent_question_id?: string
+  question_index?: number
+  total_questions?: number
 }
 
 export interface CodeEvaluation {
@@ -30,14 +36,21 @@ export interface CodeEvaluation {
   feedback: string
   code_quality: number
   correctness: number
-  efficiency: number
-  readability: number
-  improvements: string[]
+  efficiency?: number
+  readability?: number
+  algorithm_quality?: number
+  complexity?: string
+  time_complexity?: string
+  space_complexity?: string
+  edge_case_coverage?: number
+  edge_cases_handled?: boolean
+  testability?: number
+  best_practices?: number
   strengths: string[]
-  time_complexity: string
-  space_complexity: string
-  edge_cases_handled: boolean
-  best_practices: number
+  weaknesses?: string[]
+  improvements?: string[]
+  issues?: string[]
+  evidence?: string
 }
 
 export interface SecurityCheck {
@@ -50,12 +63,45 @@ export interface SecurityCheck {
 
 export interface AnswerEvaluation {
   score: number
+  overall_score?: number
   feedback: string
-  improvements: string[]
+  improvements?: string[]
+  weaknesses?: string[]
   strengths: string[]
-  technical_accuracy: number
-  communication: number
-  problem_solving: number
+  technical_accuracy?: number
+  conceptual_depth?: number
+  problem_solving?: number
+  communication?: number
+  completeness?: number
+  evidence?: string
+  recommended_follow_up?: string
+}
+
+export interface OrchestratorSessionState {
+  session_id: string
+  user_id: string
+  target_role: string
+  interview_type: string
+  phase: string
+  difficulty: string
+  current_skill_focus?: string
+  questions_count: number
+  answered_count: number
+  session_score: number
+  final_score?: number | null
+  weaknesses_discovered: string[]
+  strengths_discovered: string[]
+  pending_follow_ups: number
+  time_budget_seconds: number
+  start_time?: string
+  skills_distribution: Record<string, {
+    skill_name: string
+    questions_count: number
+    scores: number[]
+    average_score: number
+  }>
+  is_completed: boolean
+  final_assessment?: any
 }
 
 export interface CandidateSkillProfile {
@@ -131,24 +177,26 @@ class APIClient {
   }
 
   // Interview Session Management
-  async startSession(userId: string, interviewType: string): Promise<{ session_id: string; interview_type: string }> {
-    return this.request('/start_session', {
+  async startSession(userId: string, interviewType: string): Promise<any> {
+    const res: any = await this.request('/start_session', {
       method: 'POST',
       body: JSON.stringify({ user_id: userId, interview_type: interviewType }),
     })
+    return res?.data ?? res
   }
 
-  async getQuestion(sessionId: string, interviewType: string, difficulty: string = 'intermediate'): Promise<{ question_id: string; question_text: string; difficulty: string }> {
+  async getQuestion(sessionId: string, interviewType: string = 'Software Engineer', difficulty: string = 'intermediate'): Promise<any> {
     const params = new URLSearchParams({
       session_id: sessionId,
       interview_type: interviewType,
       difficulty,
     })
-    return this.request(`/get_question?${params}`)
+    const res: any = await this.request(`/get_question?${params}`)
+    return res?.data ?? res
   }
 
-  async submitAnswer(sessionId: string, questionId: string, answerText: string): Promise<{ evaluation: AnswerEvaluation; session_score: number }> {
-    return this.request('/submit_answer', {
+  async submitAnswer(sessionId: string, questionId: string, answerText: string): Promise<any> {
+    const res: any = await this.request('/submit_answer', {
       method: 'POST',
       body: JSON.stringify({
         session_id: sessionId,
@@ -156,10 +204,11 @@ class APIClient {
         answer_text: answerText,
       }),
     })
+    return res?.data ?? res
   }
 
-  async submitCode(sessionId: string, questionId: string, code: string, language: string): Promise<{ evaluation: CodeEvaluation; session_score: number }> {
-    return this.request('/submit_code', {
+  async submitCode(sessionId: string, questionId: string, code: string, language: string): Promise<any> {
+    const res: any = await this.request('/submit_code', {
       method: 'POST',
       body: JSON.stringify({
         session_id: sessionId,
@@ -168,13 +217,15 @@ class APIClient {
         language,
       }),
     })
+    return res?.data ?? res
   }
 
-  async endSession(sessionId: string, finalScore?: number): Promise<{ status: string; final_score: number }> {
-    return this.request(`/end_session/${sessionId}`, {
+  async endSession(sessionId: string, finalScore?: number): Promise<any> {
+    const res: any = await this.request(`/end_session/${sessionId}`, {
       method: 'POST',
       body: JSON.stringify({ final_score: finalScore }),
     })
+    return res?.data ?? res
   }
 
   // Security & Monitoring
@@ -218,7 +269,13 @@ class APIClient {
 
   // Session Information
   async getSessionDetails(sessionId: string): Promise<any> {
-    return this.request(`/session/${sessionId}`)
+    const res: any = await this.request(`/session/${sessionId}`)
+    return res?.data ?? res
+  }
+
+  async getSessionState(sessionId: string): Promise<OrchestratorSessionState> {
+    const res: any = await this.request(`/session/${sessionId}/state`)
+    return res?.data ?? res
   }
 
   async getUserSessions(userId: string, limit: number = 10): Promise<{ sessions: InterviewSession[]; total_count: number }> {

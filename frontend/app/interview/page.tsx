@@ -1,281 +1,328 @@
 "use client"
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { InterviewInterface } from '@/components/interview/interview-interface'
-import { Brain, Shield, Clock, Trophy, AlertTriangle } from 'lucide-react'
-import { apiClient } from '@/lib/api-client'
-import { getBrowserSupabaseClient } from '@/lib/supabase'
+import { useState, useEffect, Suspense } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { InterviewWorkspace } from "@/components/interview/interview-workspace"
+import { apiClient } from "@/lib/api-client"
+import { getBrowserSupabaseClient } from "@/lib/supabase"
+import {
+  Brain,
+  Shield,
+  Clock,
+  Code2,
+  Database,
+  Server,
+  Layers,
+  Sparkles,
+  ArrowRight,
+  CheckCircle2,
+  AlertCircle,
+  Cpu,
+  BarChart2,
+  Terminal,
+} from "lucide-react"
 
-export default function InterviewPage() {
+const ASSESSMENT_TRACKS = [
+  {
+    id: "Software Engineer",
+    title: "Software Engineering",
+    desc: "Algorithms, system architecture, programming fundamentals, and complexity analysis.",
+    icon: Terminal,
+    skills: ["Data Structures & Algorithms", "System Design", "Problem Solving", "Programming Fundamentals"],
+    targetDuration: "45 minutes",
+    difficulty: "Adaptive (Intermediate to Expert)",
+  },
+  {
+    id: "Data Scientist",
+    title: "Data Science & Machine Learning",
+    desc: "Applied statistics, predictive modeling, data pipelines, and quantitative reasoning.",
+    icon: BarChart2,
+    skills: ["Statistics", "Machine Learning", "Database Concepts", "Problem Solving"],
+    targetDuration: "45 minutes",
+    difficulty: "Adaptive (Intermediate to Expert)",
+  },
+  {
+    id: "Product Manager",
+    title: "Technical Product Management",
+    desc: "System trade-offs, technical feasibility, product reasoning, and behavioral judgment.",
+    icon: Layers,
+    skills: ["Problem Solving", "System Design", "Communication", "Behavioral Reasoning"],
+    targetDuration: "40 minutes",
+    difficulty: "Adaptive (Intermediate to Expert)",
+  },
+  {
+    id: "DevOps Engineer",
+    title: "Cloud & DevOps Engineering",
+    desc: "Distributed systems, infrastructure reliability, debugging, and database architecture.",
+    icon: Server,
+    skills: ["System Design", "Database Concepts", "Debugging", "Problem Solving"],
+    targetDuration: "45 minutes",
+    difficulty: "Adaptive (Intermediate to Expert)",
+  },
+]
+
+function InterviewContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const [isSessionStarted, setIsSessionStarted] = useState(false)
-  const [finalScore, setFinalScore] = useState<number | null>(null)
+  const [selectedTrack, setSelectedTrack] = useState<string>("Software Engineer")
+  const [isStarting, setIsStarting] = useState<boolean>(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isCheckingActiveSession, setIsCheckingActiveSession] = useState<boolean>(true)
 
-  const handleStartInterview = async () => {
+  // Check for active session in URL or localStorage
+  useEffect(() => {
+    const urlSessionId = searchParams.get("session_id")
+    if (urlSessionId) {
+      setSessionId(urlSessionId)
+      localStorage.setItem("active_interview_session_id", urlSessionId)
+      setIsCheckingActiveSession(false)
+      return
+    }
+
+    const cachedSessionId = localStorage.getItem("active_interview_session_id")
+    if (cachedSessionId) {
+      // Validate session state with backend before restoring
+      apiClient
+        .getSessionState(cachedSessionId)
+        .then((state) => {
+          if (state && !state.is_completed) {
+            setSessionId(cachedSessionId)
+          } else {
+            localStorage.removeItem("active_interview_session_id")
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem("active_interview_session_id")
+        })
+        .finally(() => {
+          setIsCheckingActiveSession(false)
+        })
+    } else {
+      setIsCheckingActiveSession(false)
+    }
+  }, [searchParams])
+
+  const handleStartAssessment = async () => {
+    setIsStarting(true)
+    setErrorMessage(null)
+
     try {
-      const supabase = getBrowserSupabaseClient()
-      if (!supabase) throw new Error("Database connection not available")
-      
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        throw new Error("Please log in to start an interview")
+      let userId = "guest_candidate"
+
+      // Attempt to get authenticated user if available
+      try {
+        const supabase = getBrowserSupabaseClient()
+        if (supabase) {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user?.id) userId = user.id
+        }
+      } catch (authErr) {
+        console.warn("Supabase auth skipped, using candidate session:", authErr)
       }
 
-      const response = await apiClient.startSession(user.id, "Technical")
-      
-      // Look into the response structure: it could be nested in `data` based on standard routes or direct response. 
-      // The API returns {'error': False, 'message': '...', 'data': {'session_id': ...}} based on interview.py line 76
-      const actualSessionId = (response as any).data?.session_id || (response as any).session_id
-      if (!actualSessionId) throw new Error("Failed to create session")
-      
+      const response = await apiClient.startSession(userId, selectedTrack)
+      const actualSessionId = response?.session_id || response?.data?.session_id
+
+      if (!actualSessionId) {
+        throw new Error("Assessment orchestrator failed to return a valid session ID.")
+      }
+
       setSessionId(actualSessionId)
-      setIsSessionStarted(true)
-      setFinalScore(null)
-    } catch (error) {
-      console.error('Failed to start interview:', error)
-      alert(error instanceof Error ? error.message : "Failed to start interview")
+      localStorage.setItem("active_interview_session_id", actualSessionId)
+
+      // Update URL search query
+      router.push(`/interview?session_id=${actualSessionId}`)
+    } catch (err: any) {
+      console.error("Failed to start assessment:", err)
+      setErrorMessage(err.message || "Failed to initialize assessment workspace. Ensure backend API is online.")
+    } finally {
+      setIsStarting(false)
     }
   }
 
-  const handleSessionEnd = (score: number) => {
-    setFinalScore(score)
-    setIsSessionStarted(false)
-    setSessionId(null)
+  const handleSessionEnd = (finalScore: number) => {
+    localStorage.removeItem("active_interview_session_id")
   }
 
-  const handleNewInterview = () => {
-    setFinalScore(null)
-    setIsSessionStarted(false)
-    setSessionId(null)
-  }
-
-  if (finalScore !== null) {
+  if (isCheckingActiveSession) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="max-w-2xl mx-auto text-center">
-          <CardHeader>
-            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <Trophy className="h-8 w-8 text-green-600" />
-            </div>
-            <CardTitle className="text-2xl">Interview Completed!</CardTitle>
-            <p className="text-muted-foreground">
-              Congratulations on completing your technical interview
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="text-center">
-              <p className="text-sm font-medium text-muted-foreground">Final Score</p>
-              <p className="text-4xl font-bold text-green-600">{finalScore}/100</p>
-              <p className="text-lg text-muted-foreground">
-                {finalScore >= 90 ? 'Excellent!' : 
-                 finalScore >= 80 ? 'Great job!' : 
-                 finalScore >= 70 ? 'Good work!' : 
-                 finalScore >= 60 ? 'Keep practicing!' : 'Review and try again!'}
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <p className="font-medium">Questions Answered</p>
-                <p className="text-2xl font-bold text-blue-600">10</p>
-              </div>
-              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <p className="font-medium">Time Taken</p>
-                <p className="text-2xl font-bold text-purple-600">45m</p>
-              </div>
-            </div>
-
-            <Button onClick={handleNewInterview} className="w-full">
-              Start New Interview
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="flex h-[80vh] flex-col items-center justify-center space-y-4">
+        <div className="h-7 w-7 animate-spin rounded-full border-2 border-foreground/30 border-t-foreground" />
+        <p className="text-xs text-muted-foreground font-mono">Checking active assessment telemetry...</p>
       </div>
     )
   }
 
-  if (isSessionStarted && sessionId) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <InterviewInterface 
-          sessionId={sessionId}
-          onSessionEnd={handleSessionEnd}
-        />
-      </div>
-    )
+  // Active Live Three-Zone Workspace
+  if (sessionId) {
+    return <InterviewWorkspace sessionId={sessionId} onSessionEnd={handleSessionEnd} />
   }
+
+  // Pre-Interview Track Selection & Configuration Launcher
+  const currentTrackDetails = ASSESSMENT_TRACKS.find((t) => t.id === selectedTrack) || ASSESSMENT_TRACKS[0]
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold">Technical Interview Hub</h1>
-          <p className="text-xl text-muted-foreground">
-            Test your skills with AI-powered technical interviews
+    <div className="mx-auto max-w-5xl px-4 py-8 space-y-8">
+      {/* Assessment Header */}
+      <div className="space-y-2 border-b border-border/60 pb-6">
+        <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground uppercase tracking-wider">
+          <Terminal className="h-3.5 w-3.5" />
+          <span>Technical Assessment Environment</span>
+        </div>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+          Adaptive Technical Interview
+        </h1>
+        <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
+          Stateful assessment driven by an adaptive evaluation engine. Evaluates algorithmic depth, system architecture, code quality, and communication rigor in real time.
+        </p>
+      </div>
+
+      {/* Error Alert */}
+      {errorMessage && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Track Selection Cards */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Select Track
+          </h2>
+          <span className="text-xs text-muted-foreground font-mono">4 Curricula Available</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {ASSESSMENT_TRACKS.map((track) => {
+            const isSelected = selectedTrack === track.id
+            const Icon = track.icon
+            return (
+              <button
+                key={track.id}
+                onClick={() => setSelectedTrack(track.id)}
+                className={`text-left p-4 rounded-lg border transition-all ${
+                  isSelected
+                    ? "border-primary bg-primary/5 shadow-sm"
+                    : "border-border/60 bg-card/60 hover:bg-card hover:border-border"
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`flex h-8 w-8 items-center justify-center rounded ${
+                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-foreground/80"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold">{track.title}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{track.desc}</p>
+                    </div>
+                  </div>
+                  {isSelected && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {track.skills.map((skill, idx) => (
+                    <span
+                      key={idx}
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/40 text-muted-foreground"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Track Specification & Protocol Checklist */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+        <div className="rounded-lg border border-border/60 bg-card/40 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase">
+            <Clock className="h-3.5 w-3.5 text-primary" />
+            <span>Time Budget</span>
+          </div>
+          <p className="text-xl font-bold font-mono">{currentTrackDetails.targetDuration}</p>
+          <p className="text-xs text-muted-foreground">
+            Strict timer synchronized with backend orchestrator. Auto-synthesizes on timeout.
           </p>
         </div>
 
-        {/* Interview Configuration */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5" />
-              Interview Configuration
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Interview Type</label>
-                <div className="flex items-center gap-2">
-                  <Badge variant="default">Technical</Badge>
-                  <Badge variant="outline">Behavioral</Badge>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Difficulty</label>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">Easy</Badge>
-                  <Badge variant="default">Medium</Badge>
-                  <Badge variant="outline">Hard</Badge>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Duration</label>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  <span>60 minutes</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <Button 
-                onClick={handleStartInterview}
-                size="lg"
-                className="w-full md:w-auto"
-              >
-                Start Interview
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-green-600" />
-                Anti-Cheating Protection
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• Webcam monitoring for face detection</li>
-                <li>• Audio analysis for suspicious sounds</li>
-                <li>• Browser behavior tracking</li>
-                <li>• Typing pattern analysis</li>
-                <li>• Real-time security alerts</li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-blue-600" />
-                AI-Powered Features
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• Dynamic question generation</li>
-                <li>• Real-time answer evaluation</li>
-                <li>• Code analysis and scoring</li>
-                <li>• Personalized feedback</li>
-                <li>• Adaptive difficulty</li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-purple-600" />
-                Interview Tools
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• Built-in code editor</li>
-                <li>• AI chat assistant</li>
-                <li>• Question navigation</li>
-                <li>• Progress tracking</li>
-                <li>• Session management</li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-yellow-600" />
-                Performance Analytics
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• Detailed scoring breakdown</li>
-                <li>• Skill area analysis</li>
-                <li>• Improvement suggestions</li>
-                <li>• Historical performance</li>
-                <li>• Benchmark comparisons</li>
-              </ul>
-            </CardContent>
-          </Card>
+        <div className="rounded-lg border border-border/60 bg-card/40 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase">
+            <Brain className="h-3.5 w-3.5 text-primary" />
+            <span>Evaluation Protocol</span>
+          </div>
+          <p className="text-xl font-bold font-mono">Dynamic Rubric</p>
+          <p className="text-xs text-muted-foreground">
+            Multi-dimensional evaluation: accuracy, problem solving, depth, and communication.
+          </p>
         </div>
 
-        {/* Instructions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
-              Important Instructions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 text-sm">
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p>Ensure your webcam and microphone are working properly before starting</p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p>Close all unnecessary browser tabs and applications</p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p>Find a quiet environment with good lighting</p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p>Have a stable internet connection throughout the interview</p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p>Don't switch tabs or use keyboard shortcuts during the interview</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-lg border border-border/60 bg-card/40 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase">
+            <Shield className="h-3.5 w-3.5 text-primary" />
+            <span>Integrity Guard</span>
+          </div>
+          <p className="text-xl font-bold font-mono">Active Proctoring</p>
+          <p className="text-xs text-muted-foreground">
+            Tab switch, copy-paste heuristics, and typing telemetry recorded to audit logs.
+          </p>
+        </div>
+      </div>
+
+      {/* Launch Action */}
+      <div className="flex flex-col sm:flex-row items-center justify-between border-t border-border/60 pt-6 gap-4">
+        <div className="text-xs text-muted-foreground space-y-0.5">
+          <p className="font-medium text-foreground">Ready to begin assessment?</p>
+          <p>Answers are continuously autosaved locally and authoritative state is backed by Supabase.</p>
+        </div>
+
+        <Button
+          onClick={handleStartAssessment}
+          disabled={isStarting}
+          size="lg"
+          className="w-full sm:w-auto h-10 px-6 font-medium text-xs flex items-center gap-2"
+        >
+          {isStarting ? (
+            <>
+              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+              Initializing Orchestrator...
+            </>
+          ) : (
+            <>
+              Launch Assessment Workspace
+              <ArrowRight className="h-4 w-4" />
+            </>
+          )}
+        </Button>
       </div>
     </div>
+  )
+}
+
+export default function InterviewPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-[80vh] flex-col items-center justify-center space-y-4">
+          <div className="h-7 w-7 animate-spin rounded-full border-2 border-foreground/30 border-t-foreground" />
+          <p className="text-xs text-muted-foreground font-mono">Loading technical assessment environment...</p>
+        </div>
+      }
+    >
+      <InterviewContent />
+    </Suspense>
   )
 }

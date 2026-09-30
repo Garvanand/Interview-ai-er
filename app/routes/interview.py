@@ -48,7 +48,16 @@ def start_session():
                 'code': 'MISSING_INTERVIEW_TYPE'
             }), 400
         
-        # Validate interview type
+        # Map and validate interview type
+        type_mapping = {
+            'Technical': 'Software Engineer',
+            'Coding': 'Software Engineer',
+            'System Design': 'Software Engineer',
+            'Behavioral': 'Software Engineer',
+        }
+        if interview_type in type_mapping:
+            interview_type = type_mapping[interview_type]
+
         valid_types = ['Software Engineer', 'Data Scientist', 'Product Manager', 'DevOps Engineer']
         if interview_type not in valid_types:
             return jsonify({
