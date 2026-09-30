@@ -135,55 +135,15 @@ export function InterviewChat({ sessionId, questionId, onHintRequest, onClarific
   }
 
   const getHintResponse = async (userMessage: string): Promise<string> => {
-    // Simulate AI hint generation
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000))
-    
-    const hints = [
-      "Think about the problem step by step. What's the first thing you need to do?",
-      "Consider edge cases - what happens with empty input or invalid data?",
-      "Look for patterns in the data that might help you optimize your solution.",
-      "Remember that sometimes the simplest approach is the best approach.",
-      "Try to break down the problem into smaller, manageable sub-problems.",
-      "What data structure would be most efficient for this type of operation?",
-      "Consider the time and space complexity of your approach.",
-      "Think about how you would solve this manually, then translate that to code."
-    ]
-    
-    return hints[Math.floor(Math.random() * hints.length)]
+    return "Interactive hints are currently unavailable as the backend service is not fully integrated."
   }
 
   const getClarificationResponse = async (userMessage: string): Promise<string> => {
-    // Simulate AI clarification generation
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000))
-    
-    const clarifications = [
-      "Let me break this down: The concept involves understanding how data flows through your program and how different operations affect the overall performance.",
-      "Think of it like this: You're building a pipeline where data goes through multiple transformations, and each step has a cost in terms of time and memory.",
-      "Here's a simple analogy: If you're sorting cards, you can do it one by one (O(n²)) or use a more efficient method like merge sort (O(n log n)).",
-      "The key insight is that some operations scale differently with input size. A linear search grows linearly, while a binary search grows logarithmically.",
-      "Consider this: Every time you loop through data, you're adding time complexity. Nested loops multiply this complexity exponentially.",
-      "Memory usage works similarly - each variable you create takes up space, and some data structures use more memory than others for the same amount of data."
-    ]
-    
-    return clarifications[Math.floor(Math.random() * clarifications.length)]
+    return "Interactive clarifications are currently unavailable."
   }
 
   const getGeneralResponse = async (userMessage: string): Promise<string> => {
-    // Simulate AI general response generation
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000))
-    
-    const responses = [
-      "That's a great question! Let me help you think through this systematically.",
-      "I understand your concern. Let's approach this from a different angle.",
-      "You're on the right track! Let me provide some additional context.",
-      "That's an interesting perspective. Let me share some insights that might help.",
-      "I can see you're thinking deeply about this. Let me offer some guidance.",
-      "You're asking the right questions! Let me help clarify this concept.",
-      "That's a common point of confusion. Let me explain this step by step.",
-      "Great observation! Let me build on that with some additional information."
-    ]
-    
-    return responses[Math.floor(Math.random() * responses.length)]
+    return "The interactive AI chat is not yet fully implemented in the backend."
   }
 
   const handleQuickAction = async (action: 'hint' | 'clarification' | 'followup') => {

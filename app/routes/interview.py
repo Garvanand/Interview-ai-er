@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from app.services.supabase_service import SupabaseService
-from app.services.gemini_service import GeminiService
+from app.services.ai import AssessmentEngine, GeminiProvider
 from app.services.security_service import SecurityService
 import logging
 from datetime import datetime
@@ -12,7 +12,7 @@ interview_bp = Blueprint('interview', __name__)
 
 # Initialize services
 supabase_service = SupabaseService()
-gemini_service = GeminiService()
+ai_engine = AssessmentEngine(GeminiProvider())
 security_service = SecurityService()
 
 @interview_bp.route('/start_session', methods=['POST'])
@@ -139,11 +139,12 @@ def get_question():
                 'code': 'SESSION_INACTIVE'
             }), 400
         
-        # Generate question using Gemini
-        question_text = gemini_service.generate_question(interview_type, difficulty)
+        # Generate question using AI Engine
+        question_data = ai_engine.generate_question(interview_type, difficulty)
+        question_text_str = question_data.get("question_text", str(question_data))
         
         # Store question in database
-        question_id = supabase_service.store_question(session_id, question_text, interview_type)
+        question_id = supabase_service.store_question(session_id, question_text_str, interview_type)
         
         if not question_id:
             return jsonify({
@@ -166,7 +167,7 @@ def get_question():
             'message': 'Question retrieved successfully',
             'data': {
                 'question_id': question_id,
-                'question_text': question_text,
+                'question_text': question_text_str,
                 'session_id': session_id,
                 'difficulty': difficulty,
                 'interview_type': interview_type
@@ -248,8 +249,8 @@ def submit_answer():
                 'code': 'QUESTION_NOT_FOUND'
             }), 404
         
-        # Evaluate answer using Gemini
-        evaluation = gemini_service.evaluate_answer(
+        # Evaluate answer using AI Engine
+        evaluation = ai_engine.evaluate_answer(
             question['question_text'], 
             answer_text, 
             session['interview_type']
@@ -266,24 +267,25 @@ def submit_answer():
             }), 500
         
         # Update session score
-        current_score = session.get('score', 0)
-        new_score = (current_score + evaluation.get('score', 0)) / 2  # Average score
+        answered_questions = [q for q in questions if q.get('evaluation_score') is not None]
+        total_score = sum(q.get('evaluation_score', 0) for q in answered_questions) + evaluation.get('overall_score', 0)
+        new_score = total_score / (len(answered_questions) + 1)
         supabase_service.update_session_score(session_id, new_score)
         
         # Log answer submission event
         supabase_service.log_event(session_id, 'answer_submitted', {
             'question_id': question_id,
             'answer_length': len(answer_text),
-            'evaluation_score': evaluation.get('score', 0)
+            'evaluation_score': evaluation.get('overall_score', 0)
         })
         
         # Check for potential anomalies
-        if evaluation.get('score', 0) < 30:
+        if evaluation.get('overall_score', 0) < 30:
             supabase_service.log_anomaly(
                 session_id, 
                 'low_score', 
                 'medium', 
-                {'score': evaluation.get('score', 0), 'question_id': question_id}
+                {'score': evaluation.get('overall_score', 0), 'question_id': question_id}
             )
         
         logger.info(f"Answer submitted successfully for question {question_id}")
@@ -447,7 +449,9 @@ def get_follow_up_question():
             }), 400
         
         # Generate follow-up question
-        follow_up = gemini_service.generate_follow_up_question(question, answer, interview_type)
+        dummy_evaluation = {'overall_score': 70, 'question_id': 'unknown'}
+        follow_up_question_data = ai_engine.generate_follow_up_question(question, answer, dummy_evaluation)
+        follow_up = follow_up_question_data.get("question_text", str(follow_up_question_data))
         
         return jsonify({
             'error': False,
@@ -517,12 +521,11 @@ def submit_code():
                 'code': 'QUESTION_NOT_FOUND'
             }), 404
         
-        # Evaluate code using Gemini
-        evaluation = gemini_service.evaluate_code(
-            question['question_text'], 
+        # Evaluate code using AI Engine
+        evaluation = ai_engine.evaluate_code(
             code, 
             language, 
-            session['interview_type']
+            question['question_text']
         )
         
         # Store code submission and evaluation
@@ -542,8 +545,9 @@ def submit_code():
             }), 500
         
         # Update session score
-        current_score = session.get('score', 0)
-        new_score = (current_score + evaluation['score']) / 2
+        answered_questions = [q for q in questions if q.get('code_evaluation_score') is not None or q.get('evaluation_score') is not None]
+        total_score = sum(q.get('code_evaluation_score') or q.get('evaluation_score', 0) for q in answered_questions) + evaluation.get('overall_score', 0)
+        new_score = total_score / (len(answered_questions) + 1)
         supabase_service.update_session_score(session_id, new_score)
         
         # Log the code submission
@@ -551,7 +555,7 @@ def submit_code():
             'question_id': question_id,
             'language': language,
             'code_length': len(code),
-            'evaluation_score': evaluation['score']
+            'evaluation_score': evaluation.get('overall_score', 0)
         })
         
         return jsonify({
@@ -609,7 +613,7 @@ def security_check():
                 {
                     'risk_score': cheating_detection['risk_score'],
                     'anomalies': cheating_detection['anomalies'],
-                    'confidence': cheating_detection['confidence']
+                    'confidence': cheating_detection.get('confidence', 0.8)
                 }
             )
             
@@ -627,8 +631,8 @@ def security_check():
                 'is_cheating': cheating_detection['is_cheating'],
                 'risk_score': cheating_detection['risk_score'],
                 'anomalies': cheating_detection['anomalies'],
-                'recommendations': cheating_detection['recommendations'],
-                'confidence': cheating_detection['confidence']
+                'recommendations': cheating_detection.get('recommendations', []),
+                'confidence': cheating_detection.get('confidence', 0.8)
             }
         }), 200
         
@@ -643,32 +647,11 @@ def security_check():
 @interview_bp.route('/security/report/<session_id>', methods=['GET'])
 def get_security_report(session_id: str):
     """Get security report for a session"""
-    try:
-        # Validate session
-        session = supabase_service.get_session(session_id)
-        if not session:
-            return jsonify({
-                'error': True,
-                'message': 'Session not found',
-                'code': 'SESSION_NOT_FOUND'
-            }), 404
-        
-        # Get security report
-        security_report = security_service.get_security_report(session_id)
-        
-        return jsonify({
-            'error': False,
-            'message': 'Security report retrieved successfully',
-            'data': security_report
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Failed to get security report: {e}")
-        return jsonify({
-            'error': True,
-            'message': 'Internal server error',
-            'code': 'INTERNAL_ERROR'
-        }), 500
+    return jsonify({
+        'error': True,
+        'message': 'Security report not implemented yet',
+        'code': 'NOT_IMPLEMENTED'
+    }), 501
 
 @interview_bp.route('/practice/coding', methods=['POST'])
 def practice_coding():
@@ -688,8 +671,9 @@ def practice_coding():
         difficulty = data.get('difficulty', 'intermediate')
         topic = data.get('topic', 'coding')
         
-        # Generate coding question
-        question = gemini_service.generate_coding_question(interview_type, difficulty, topic)
+        # Generate coding question using AI Engine
+        question_data = ai_engine.generate_question("coding", difficulty, topic=topic)
+        question = question_data.get("question_text", str(question_data))
         
         return jsonify({
             'error': False,

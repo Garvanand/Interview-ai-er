@@ -264,31 +264,11 @@ export function EnhancedCodeEditor({ sessionId, questionId, onCodeSubmit }: Enha
 
     setIsRunning(true)
     setError(null)
-    startTime.current = Date.now()
-
+    
     try {
-      // Simulate code execution
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000))
-      
-      const executionTimeMs = Date.now() - startTime.current
-      setExecutionTime(executionTimeMs)
-      
-      // Simulate output based on language
-      const outputs = {
-        python: 'Result: 9',
-        javascript: 'Result: 9',
-        typescript: 'Result: 9',
-        java: 'Result: 9',
-        cpp: 'Result: 9',
-        csharp: 'Result: 9',
-        go: 'Result: 9',
-        rust: 'Result: 9'
-      }
-      
-      console.log(outputs[language] || 'Code executed successfully')
-      
-    } catch (err: any) {
-      setError(err.message || 'Code execution failed')
+      // Intentional explicit unsupported state instead of fake output
+      await new Promise(resolve => setTimeout(resolve, 500))
+      setError("Real code execution is currently unavailable. Please use 'Submit for Evaluation' to get AI feedback on your code.")
     } finally {
       setIsRunning(false)
     }

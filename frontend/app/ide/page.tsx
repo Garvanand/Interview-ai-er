@@ -38,7 +38,7 @@ export default function IDEPage() {
                 <Play className="h-5 w-5 text-green-600" />
                 Code Execution
               </CardTitle>
-            </CardContent>
+            </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
                 Run your code in a safe environment and see real-time output. Perfect for testing algorithms and data structures.

@@ -23,6 +23,7 @@ import {
   Minus
 } from 'lucide-react'
 import { apiClient } from '@/lib/api-client'
+import { getBrowserSupabaseClient } from '@/lib/supabase'
 
 interface InterviewSession {
   id: string
@@ -81,64 +82,33 @@ export default function DashboardPage() {
     setError(null)
 
     try {
-      // For demo purposes, we'll use mock data
-      // In production, this would come from the backend
-      const mockSessions: InterviewSession[] = [
-        {
-          id: 'session_1',
-          interview_type: 'Technical',
-          start_time: '2024-01-15T10:00:00Z',
-          end_time: '2024-01-15T11:00:00Z',
-          score: 85,
-          status: 'completed',
-          security_events_count: 2,
-          questions_answered: 8
-        },
-        {
-          id: 'session_2',
-          interview_type: 'Technical',
-          start_time: '2024-01-10T14:00:00Z',
-          end_time: '2024-01-10T15:00:00Z',
-          score: 92,
-          status: 'completed',
-          security_events_count: 0,
-          questions_answered: 10
-        },
-        {
-          id: 'session_3',
-          interview_type: 'Behavioral',
-          start_time: '2024-01-05T09:00:00Z',
-          end_time: '2024-01-05T09:45:00Z',
-          score: 78,
-          status: 'completed',
-          security_events_count: 1,
-          questions_answered: 6
-        },
-        {
-          id: 'session_4',
-          interview_type: 'Technical',
-          start_time: '2024-01-01T16:00:00Z',
-          status: 'in_progress',
-          security_events_count: 0,
-          questions_answered: 3
-        }
-      ]
+      const supabase = getBrowserSupabaseClient()
+      if (!supabase) throw new Error("Database connection not available")
+      
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        throw new Error("Please log in to view dashboard data")
+      }
 
-      setSessions(mockSessions)
+      const response = await apiClient.getUserSessions(user.id, 50)
+      
+      const fetchedSessions: InterviewSession[] = response.sessions || []
+      
+      setSessions(fetchedSessions)
 
       // Calculate metrics
-      const completedSessions = mockSessions.filter(s => s.status === 'completed')
+      const completedSessions = fetchedSessions.filter(s => s.status === 'completed')
       const totalScore = completedSessions.reduce((sum, s) => sum + (s.score || 0), 0)
-      const totalSecurityFlags = mockSessions.reduce((sum, s) => sum + s.security_events_count, 0)
-      const totalQuestions = mockSessions.reduce((sum, s) => sum + s.questions_answered, 0)
+      const totalSecurityFlags = fetchedSessions.reduce((sum, s) => sum + (s.security_events_count || 0), 0)
+      const totalQuestions = fetchedSessions.reduce((sum, s) => sum + (s.questions_answered || 0), 0)
 
       setMetrics({
-        totalSessions: mockSessions.length,
+        totalSessions: fetchedSessions.length,
         averageScore: completedSessions.length > 0 ? Math.round(totalScore / completedSessions.length) : 0,
-        bestScore: Math.max(...completedSessions.map(s => s.score || 0)),
+        bestScore: completedSessions.length > 0 ? Math.max(...completedSessions.map(s => s.score || 0)) : 0,
         totalQuestions,
         securityFlags: totalSecurityFlags,
-        completionRate: Math.round((completedSessions.length / mockSessions.length) * 100)
+        completionRate: fetchedSessions.length > 0 ? Math.round((completedSessions.length / fetchedSessions.length) * 100) : 0
       })
 
     } catch (err: any) {

@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { InterviewInterface } from '@/components/interview/interview-interface'
 import { Brain, Shield, Clock, Trophy, AlertTriangle } from 'lucide-react'
+import { apiClient } from '@/lib/api-client'
+import { getBrowserSupabaseClient } from '@/lib/supabase'
 
 export default function InterviewPage() {
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -14,14 +16,27 @@ export default function InterviewPage() {
 
   const handleStartInterview = async () => {
     try {
-      // For demo purposes, we'll use a mock session ID
-      // In production, this would come from the backend
-      const mockSessionId = `session_${Date.now()}`
-      setSessionId(mockSessionId)
+      const supabase = getBrowserSupabaseClient()
+      if (!supabase) throw new Error("Database connection not available")
+      
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        throw new Error("Please log in to start an interview")
+      }
+
+      const response = await apiClient.startSession(user.id, "Technical")
+      
+      // Look into the response structure: it could be nested in `data` based on standard routes or direct response. 
+      // The API returns {'error': False, 'message': '...', 'data': {'session_id': ...}} based on interview.py line 76
+      const actualSessionId = (response as any).data?.session_id || (response as any).session_id
+      if (!actualSessionId) throw new Error("Failed to create session")
+      
+      setSessionId(actualSessionId)
       setIsSessionStarted(true)
       setFinalScore(null)
     } catch (error) {
       console.error('Failed to start interview:', error)
+      alert(error instanceof Error ? error.message : "Failed to start interview")
     }
   }
 

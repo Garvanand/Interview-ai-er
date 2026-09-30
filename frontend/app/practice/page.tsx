@@ -24,6 +24,8 @@ import {
   BookOpen,
   Zap
 } from 'lucide-react'
+import { apiClient } from '@/lib/api-client'
+import { getBrowserSupabaseClient } from '@/lib/supabase'
 
 interface PracticeQuestion {
   id: string
@@ -187,7 +189,7 @@ export default function PracticePage() {
       setShowResults(false)
 
       // Generate first question
-      generateQuestion(session.topic, session.difficulty)
+      await fetchNextQuestion(session.topic, session.difficulty)
 
     } catch (error) {
       console.error('Failed to start practice session:', error)
@@ -196,70 +198,27 @@ export default function PracticePage() {
     }
   }
 
-  const generateQuestion = (topic: string, difficulty: string) => {
-    // Mock question generation
-    const mockQuestions: Record<string, PracticeQuestion[]> = {
-      algorithms: [
-        {
-          id: 'algo_1',
-          type: 'algorithm',
-          difficulty: 'medium',
-          topic: 'algorithms',
-          question: 'Implement a function to find the longest common subsequence of two strings.',
-          timeLimit: 300,
-          points: 10
-        }
-      ],
-      'data-structures': [
-        {
-          id: 'ds_1',
-          type: 'data-structure',
-          difficulty: 'medium',
-          topic: 'data-structures',
-          question: 'Design a data structure that supports insert, delete, and getRandom operations in O(1) time.',
-          timeLimit: 300,
-          points: 10
-        }
-      ],
-      'system-design': [
-        {
-          id: 'sd_1',
-          type: 'system-design',
-          difficulty: 'hard',
-          topic: 'system-design',
-          question: 'Design a URL shortening service like bit.ly. Consider scalability, availability, and consistency.',
-          timeLimit: 600,
-          points: 15
-        }
-      ],
-      coding: [
-        {
-          id: 'code_1',
+  const fetchNextQuestion = async (topic: string, difficulty: string) => {
+    try {
+      const res = await apiClient.generatePracticeQuestion("Practice", difficulty, topic)
+      if (res.question) {
+        setCurrentQuestion({
+          id: `practice_q_${Date.now()}`,
           type: 'coding',
-          difficulty: 'easy',
-          topic: 'coding',
-          question: 'Write a function to reverse a string in-place without using additional data structures.',
-          timeLimit: 180,
-          points: 5
-        }
-      ],
-      'problem-solving': [
-        {
-          id: 'ps_1',
-          type: 'problem-solving',
-          difficulty: 'medium',
-          topic: 'problem-solving',
-          question: 'You have 8 balls, one of which is heavier. Using a balance scale, find the heavy ball in minimum weighings.',
+          difficulty: res.difficulty || difficulty,
+          topic: res.topic || topic,
+          question: res.question,
           timeLimit: 300,
           points: 10
-        }
-      ]
+        })
+      }
+    } catch (err) {
+      console.error("Failed to fetch practice question", err)
+      setCurrentQuestion(null)
     }
-
-    const questions = mockQuestions[topic] || []
-    const randomQuestion = questions[Math.floor(Math.random() * questions.length)]
-    setCurrentQuestion(randomQuestion)
   }
+
+  // generateQuestion removed in favor of fetchNextQuestion
 
   const submitAnswer = async () => {
     if (!currentQuestion || !userAnswer.trim() || !currentSession) return
@@ -270,9 +229,10 @@ export default function PracticePage() {
       // Simulate answer evaluation
       await new Promise(resolve => setTimeout(resolve, 1500))
 
-      // Mock evaluation result (in production, this would come from the backend)
-      const isCorrect = Math.random() > 0.3 // 70% success rate for demo
-      const score = isCorrect ? currentQuestion.points : 0
+      // Mock evaluation removed (no random correctness)
+      // Real evaluation not yet implemented for practice mode
+      const isCorrect = false
+      const score = 0
 
       // Update session
       const updatedSession = {
@@ -284,23 +244,6 @@ export default function PracticePage() {
 
       setCurrentSession(updatedSession)
 
-      // Update topic progress
-      const updatedProgress = topicProgress.map(topic => {
-        if (topic.topic === selectedTopic) {
-          return {
-            ...topic,
-            totalQuestions: topic.totalQuestions + 1,
-            correctAnswers: topic.correctAnswers + (isCorrect ? 1 : 0),
-            averageScore: Math.round((topic.averageScore * topic.totalQuestions + score) / (topic.totalQuestions + 1)),
-            timeSpent: topic.timeSpent + 5, // Mock time spent
-            lastPracticed: new Date().toISOString().split('T')[0]
-          }
-        }
-        return topic
-      })
-
-      setTopicProgress(updatedProgress)
-
       // Show results briefly
       setShowResults(true)
       setTimeout(() => setShowResults(false), 3000)
@@ -310,7 +253,7 @@ export default function PracticePage() {
         endPracticeSession(updatedSession)
       } else {
         setUserAnswer('')
-        generateQuestion(selectedTopic, selectedDifficulty)
+        await fetchNextQuestion(selectedTopic, selectedDifficulty)
       }
 
     } catch (error) {
@@ -450,8 +393,8 @@ export default function PracticePage() {
                 <div className="flex items-center gap-3 text-green-800">
                   <CheckCircle className="h-5 w-5" />
                   <div>
-                    <p className="font-medium">Answer submitted successfully!</p>
-                    <p className="text-sm">Moving to next question...</p>
+                    <p className="font-medium">Answer recorded.</p>
+                    <p className="text-sm">Evaluation is currently unavailable in practice mode.</p>
                   </div>
                 </div>
               </CardContent>
