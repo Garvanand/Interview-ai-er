@@ -1,0 +1,55 @@
+from .models import (
+    AnalyticsFilter,
+    ScoreTrendPoint,
+    ScoreTrendSummary,
+    SkillTrendSummary,
+    QuestionTypePerformance,
+    DifficultyProgression,
+    ConsistencyAnalysis,
+    RepeatedWeakness,
+    RecommendationImpact,
+    RecentVsHistorical,
+    CompletionBehavior,
+    NextPracticeRecommendation,
+    LongitudinalAnalyticsResponse
+)
+from .service import LongitudinalAnalyticsService
+from .methodology import (
+    calculate_score_trends,
+    calculate_skill_trends,
+    calculate_question_type_performance,
+    calculate_difficulty_progression,
+    calculate_consistency,
+    calculate_repeated_weaknesses,
+    calculate_recommendation_impact,
+    calculate_recent_vs_historical,
+    calculate_completion_behavior,
+    generate_next_practice_recommendations
+)
+
+__all__ = [
+    'AnalyticsFilter',
+    'ScoreTrendPoint',
+    'ScoreTrendSummary',
+    'SkillTrendSummary',
+    'QuestionTypePerformance',
+    'DifficultyProgression',
+    'ConsistencyAnalysis',
+    'RepeatedWeakness',
+    'RecommendationImpact',
+    'RecentVsHistorical',
+    'CompletionBehavior',
+    'NextPracticeRecommendation',
+    'LongitudinalAnalyticsResponse',
+    'LongitudinalAnalyticsService',
+    'calculate_score_trends',
+    'calculate_skill_trends',
+    'calculate_question_type_performance',
+    'calculate_difficulty_progression',
+    'calculate_consistency',
+    'calculate_repeated_weaknesses',
+    'calculate_recommendation_impact',
+    'calculate_recent_vs_historical',
+    'calculate_completion_behavior',
+    'generate_next_practice_recommendations'
+]

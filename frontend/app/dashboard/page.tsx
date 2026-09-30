@@ -43,15 +43,11 @@ import {
   Tooltip as RechartsTooltip, 
   CartesianGrid 
 } from 'recharts'
-import { 
-  apiClient, 
-  InterviewSession, 
-  CandidateSkillProfile, 
-  Recommendation 
-} from '@/lib/api-client'
-import { getBrowserSupabaseClient } from '@/lib/supabase'
+import { apiClient, InterviewSession, CandidateSkillProfile, Recommendation } from '@/lib/api-client'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function RedesignedDashboardPage() {
+  const { userId, isLoading: authLoading } = useAuth({ redirectIfUnauthenticated: true })
   const [sessions, setSessions] = useState<InterviewSession[]>([])
   const [skillProfiles, setSkillProfiles] = useState<CandidateSkillProfile[]>([])
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
@@ -64,8 +60,12 @@ export default function RedesignedDashboardPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
-    loadDashboardData()
-  }, [])
+    if (!authLoading && userId) {
+      loadDashboardData()
+    } else if (!authLoading && !userId) {
+      setIsLoading(false)
+    }
+  }, [authLoading, userId])
 
   const loadDashboardData = async (refreshOnly = false) => {
     if (refreshOnly) {
@@ -76,18 +76,12 @@ export default function RedesignedDashboardPage() {
     setError(null)
 
     try {
-      // 1. Resolve current user identity
-      let userId = "00000000-0000-0000-0000-000000000001"
-      const supabase = getBrowserSupabaseClient()
-      if (supabase) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            userId = user.id
-          }
-        } catch {
-          // Fallback to demo user ID
-        }
+      // 1. Use verified user identity from useAuth — never a hardcoded fallback
+      if (!userId) {
+        setError('You must be signed in to view your dashboard.')
+        setIsLoading(false)
+        setIsRefreshing(false)
+        return
       }
       setCurrentUserId(userId)
 

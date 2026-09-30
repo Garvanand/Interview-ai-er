@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { InterviewWorkspace } from "@/components/interview/interview-workspace"
 import { apiClient } from "@/lib/api-client"
-import { getBrowserSupabaseClient } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 import {
   Brain,
   Shield,
@@ -68,6 +68,7 @@ function InterviewContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
+  const { userId, isLoading: authLoading, isAuthenticated } = useAuth({ redirectIfUnauthenticated: true })
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [selectedTrack, setSelectedTrack] = useState<string>("Software Engineer")
   const [isStarting, setIsStarting] = useState<boolean>(false)
@@ -108,23 +109,14 @@ function InterviewContent() {
   }, [searchParams])
 
   const handleStartAssessment = async () => {
+    if (!userId || !isAuthenticated) {
+      setErrorMessage("You must be signed in to start an interview.")
+      return
+    }
     setIsStarting(true)
     setErrorMessage(null)
 
     try {
-      let userId = "guest_candidate"
-
-      // Attempt to get authenticated user if available
-      try {
-        const supabase = getBrowserSupabaseClient()
-        if (supabase) {
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user?.id) userId = user.id
-        }
-      } catch (authErr) {
-        console.warn("Supabase auth skipped, using candidate session:", authErr)
-      }
-
       const response = await apiClient.startSession(userId, selectedTrack)
       const actualSessionId = response?.session_id || response?.data?.session_id
 

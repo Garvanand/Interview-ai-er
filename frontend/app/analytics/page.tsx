@@ -59,24 +59,16 @@ import {
 } from "@/components/ui/select"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  apiClient,
-  LongitudinalAnalyticsResponse,
-  AnalyticsFilterOptions,
-  AnalyticsFilterParams,
-  NextPracticeRecommendation,
-  SkillTrendSummary,
-  RepeatedWeakness
-} from "@/lib/api-client"
-import { getBrowserSupabaseClient } from "@/lib/supabase"
+import { apiClient, LongitudinalAnalyticsResponse, AnalyticsFilterOptions, AnalyticsFilterParams, NextPracticeRecommendation, SkillTrendSummary, RepeatedWeakness } from "@/lib/api-client"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function LongitudinalAnalyticsPage() {
+  const { userId, isLoading: authLoading } = useAuth({ redirectIfUnauthenticated: true })
   const [data, setData] = useState<LongitudinalAnalyticsResponse | null>(null)
   const [filterOptions, setFilterOptions] = useState<AnalyticsFilterOptions | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [currentUserId, setCurrentUserId] = useState<string>("00000000-0000-0000-0000-000000000001")
 
   // Filter States
   const [timePreset, setTimePreset] = useState<string>("all")
@@ -87,31 +79,12 @@ export default function LongitudinalAnalyticsPage() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all")
   const [selectedQuestionType, setSelectedQuestionType] = useState<string>("all")
 
-  // Resolve user identity on mount
-  useEffect(() => {
-    async function resolveUser() {
-      try {
-        const supabase = getBrowserSupabaseClient()
-        if (supabase) {
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user?.id) {
-            setCurrentUserId(user.id)
-            return
-          }
-        }
-      } catch {
-        // Fallback to default demo user
-      }
-    }
-    resolveUser()
-  }, [])
-
   // Load filter options once user is resolved
   useEffect(() => {
-    if (!currentUserId) return
+    if (authLoading || !userId) return
     async function loadOptions() {
       try {
-        const res = await apiClient.getAnalyticsFilterOptions(currentUserId)
+        const res = await apiClient.getAnalyticsFilterOptions(userId!)
         if (res?.success && res.data) {
           setFilterOptions(res.data)
         }
@@ -120,7 +93,7 @@ export default function LongitudinalAnalyticsPage() {
       }
     }
     loadOptions()
-  }, [currentUserId])
+  }, [authLoading, userId])
 
   // Compute effective filter payload
   const currentFilterPayload = useMemo<AnalyticsFilterParams>(() => {
@@ -154,13 +127,13 @@ export default function LongitudinalAnalyticsPage() {
 
   // Fetch analytics data from backend
   const fetchAnalytics = useCallback(async (refresh = false) => {
-    if (!currentUserId) return
+    if (authLoading || !userId) return
     if (refresh) setIsRefreshing(true)
     else setIsLoading(true)
     setError(null)
 
     try {
-      const res = await apiClient.getLongitudinalAnalytics(currentUserId, currentFilterPayload)
+      const res = await apiClient.getLongitudinalAnalytics(userId, currentFilterPayload)
       if (res?.success && res.data) {
         setData(res.data)
       } else {
@@ -173,7 +146,7 @@ export default function LongitudinalAnalyticsPage() {
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }, [currentUserId, currentFilterPayload])
+  }, [authLoading, userId, currentFilterPayload])
 
   useEffect(() => {
     fetchAnalytics()

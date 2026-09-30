@@ -1,12 +1,15 @@
-from .engine import AssessmentEngine
-from .providers.base import AIProvider
-from .providers.gemini import GeminiProvider
-from .schemas import (
+"""
+Compatibility re-export from canonical app.ai package.
+"""
+from app.ai import (
+    AssessmentEngine,
+    AIProvider,
+    GeminiProvider,
     AnswerEvaluation,
     CodeEvaluation,
     Question,
+    SessionSynthesis,
     SkillExtraction,
-    SessionSynthesis
 )
 
 __all__ = [
@@ -16,6 +19,6 @@ __all__ = [
     "AnswerEvaluation",
     "CodeEvaluation",
     "Question",
-    "SkillExtraction",
     "SessionSynthesis",
+    "SkillExtraction",
 ]
