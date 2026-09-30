@@ -8,7 +8,7 @@ import uuid
 logger = logging.getLogger(__name__)
 
 class SupabaseService:
-    """Service for interacting with Supabase database"""
+    """Service for interacting with Supabase database (New Architecture)"""
     
     def __init__(self):
         self.client: Optional[Client] = None
@@ -42,10 +42,10 @@ class SupabaseService:
                 'interview_type': interview_type,
                 'start_time': datetime.now(timezone.utc).isoformat(),
                 'score': 0,
-                'status': 'active'
+                'status': 'INITIALIZING'
             }
             
-            result = client.table('sessions').insert(session_data).execute()
+            result = client.table('interview_sessions').insert(session_data).execute()
             
             if result.data:
                 session = result.data[0]
@@ -69,7 +69,7 @@ class SupabaseService:
         """Get session by ID"""
         try:
             client = self._get_client()
-            result = client.table('sessions').select('*').eq('id', session_id).execute()
+            result = client.table('interview_sessions').select('*').eq('id', session_id).execute()
             
             if result.data:
                 return result.data[0]
@@ -83,7 +83,7 @@ class SupabaseService:
         """Update session score"""
         try:
             client = self._get_client()
-            result = client.table('sessions').update({
+            result = client.table('interview_sessions').update({
                 'score': new_score,
                 'updated_at': datetime.now(timezone.utc).isoformat()
             }).eq('id', session_id).execute()
@@ -103,7 +103,7 @@ class SupabaseService:
             client = self._get_client()
             
             update_data = {
-                'status': 'completed',
+                'status': 'COMPLETED',
                 'end_time': datetime.now(timezone.utc).isoformat(),
                 'updated_at': datetime.now(timezone.utc).isoformat()
             }
@@ -111,7 +111,7 @@ class SupabaseService:
             if final_score is not None:
                 update_data['score'] = final_score
             
-            result = client.table('sessions').update(update_data).eq('id', session_id).execute()
+            result = client.table('interview_sessions').update(update_data).eq('id', session_id).execute()
             
             success = len(result.data) > 0
             if success:
@@ -131,11 +131,11 @@ class SupabaseService:
                 'id': str(uuid.uuid4()),
                 'session_id': session_id,
                 'question_text': question_text,
-                'interview_type': interview_type,
+                'question_type': 'technical',
                 'created_at': datetime.now(timezone.utc).isoformat()
             }
             
-            result = client.table('questions').insert(question_data).execute()
+            result = client.table('interview_questions').insert(question_data).execute()
             
             if result.data:
                 question_id = result.data[0]['id']
@@ -148,67 +148,122 @@ class SupabaseService:
             return None
 
     def store_answer(self, session_id: str, question_id: str, answer_text: str, evaluation: Dict[str, Any]) -> bool:
-        """Store an answer and its evaluation"""
+        """Store an answer and its evaluation in normalized tables"""
         try:
             client = self._get_client()
             
-            answer_data = {
-                'answer_text': answer_text,
-                'evaluation_score': evaluation.get('score', 0),
-                'evaluation_feedback': evaluation.get('feedback', ''),
-                'evaluation_details': evaluation,
-                'updated_at': datetime.now(timezone.utc).isoformat()
+            # 1. Insert response
+            response_id = str(uuid.uuid4())
+            response_data = {
+                'id': response_id,
+                'question_id': question_id,
+                'response_text': answer_text,
+                'submitted_at': datetime.now(timezone.utc).isoformat()
             }
+            client.table('responses').insert(response_data).execute()
             
-            result = client.table('questions').update(answer_data).eq('id', question_id).execute()
+            # 2. Insert evaluation
+            eval_data = {
+                'id': str(uuid.uuid4()),
+                'response_id': response_id,
+                'score': evaluation.get('score', 0),
+                'feedback': evaluation.get('feedback', ''),
+                'evaluation_details': evaluation,
+                'status': 'COMPLETED'
+            }
+            client.table('evaluations').insert(eval_data).execute()
             
-            success = len(result.data) > 0
-            if success:
-                logger.info(f"Answer stored successfully for question {question_id}")
-            return success
+            logger.info(f"Answer stored successfully for question {question_id}")
+            return True
             
         except Exception as e:
             logger.error(f"Failed to store answer: {e}")
             return False
 
     def store_code_submission(self, session_id: str, question_id: str, code: str, language: str, evaluation: Dict[str, Any]) -> bool:
-        """Store code submission and evaluation"""
+        """Store code submission and evaluation in normalized tables"""
         try:
             client = self._get_client()
             
+            # 1. Insert code submission
+            submission_id = str(uuid.uuid4())
             code_data = {
+                'id': submission_id,
+                'question_id': question_id,
                 'code_text': code,
                 'programming_language': language,
-                'code_evaluation_score': evaluation.get('score', 0),
-                'code_evaluation_details': evaluation,
-                'updated_at': datetime.now(timezone.utc).isoformat()
+                'submitted_at': datetime.now(timezone.utc).isoformat()
             }
+            client.table('code_submissions').insert(code_data).execute()
             
-            result = client.table('questions').update(code_data).eq('id', question_id).execute()
+            # 2. Insert execution run details
+            exec_data = {
+                'id': str(uuid.uuid4()),
+                'code_submission_id': submission_id,
+                'status': 'COMPLETED',
+                'stdout': evaluation.get('stdout', ''),
+                'stderr': evaluation.get('stderr', '')
+            }
+            client.table('execution_runs').insert(exec_data).execute()
             
-            success = len(result.data) > 0
-            if success:
-                logger.info(f"Code submission stored successfully for question {question_id}")
-            return success
+            # Since evaluations are also expected for code, we mock a response + evaluation
+            # so standard flows don't break, or we just rely on code_submissions for analytics.
+            response_id = str(uuid.uuid4())
+            client.table('responses').insert({
+                'id': response_id,
+                'question_id': question_id,
+                'response_text': code,
+                'submitted_at': datetime.now(timezone.utc).isoformat()
+            }).execute()
+            
+            client.table('evaluations').insert({
+                'id': str(uuid.uuid4()),
+                'response_id': response_id,
+                'score': evaluation.get('score', 0),
+                'feedback': evaluation.get('feedback', ''),
+                'evaluation_details': evaluation,
+                'status': 'COMPLETED'
+            }).execute()
+            
+            logger.info(f"Code submission stored successfully for question {question_id}")
+            return True
             
         except Exception as e:
             logger.error(f"Failed to store code submission: {e}")
             return False
 
     def get_session_questions(self, session_id: str) -> List[Dict[str, Any]]:
-        """Get all questions for a session"""
+        """Get all questions for a session, including legacy format compatibility"""
         try:
             client = self._get_client()
-            result = client.table('questions').select('*').eq('session_id', session_id).order('created_at').execute()
             
-            return result.data if result.data else []
+            # Join questions with responses and evaluations
+            result = client.table('interview_questions').select(
+                '*, responses(*, evaluations(*))'
+            ).eq('session_id', session_id).order('created_at').execute()
+            
+            questions = []
+            for q in (result.data or []):
+                # Backwards compatibility mapping for frontend/services
+                q_mapped = dict(q)
+                if q.get('responses') and len(q['responses']) > 0:
+                    latest_response = q['responses'][-1]
+                    q_mapped['answer_text'] = latest_response.get('response_text')
+                    if latest_response.get('evaluations') and len(latest_response['evaluations']) > 0:
+                        latest_eval = latest_response['evaluations'][-1]
+                        q_mapped['evaluation_score'] = latest_eval.get('score')
+                        q_mapped['evaluation_feedback'] = latest_eval.get('feedback')
+                        q_mapped['evaluation_details'] = latest_eval.get('evaluation_details')
+                questions.append(q_mapped)
+                
+            return questions
             
         except Exception as e:
             logger.error(f"Failed to get questions for session {session_id}: {e}")
             return []
 
     def log_event(self, session_id: str, event_type: str, details: Dict[str, Any] = None) -> bool:
-        """Log a system event"""
+        """Log a system event to session_events"""
         try:
             client = self._get_client()
             
@@ -216,41 +271,33 @@ class SupabaseService:
                 'id': str(uuid.uuid4()),
                 'session_id': session_id,
                 'event_type': event_type,
-                'details': details or {},
+                'event_data': details or {},
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }
             
-            result = client.table('logs').insert(event_data).execute()
-            
-            success = len(result.data) > 0
-            if success:
-                logger.info(f"Event logged successfully: {event_type}")
-            return success
+            result = client.table('session_events').insert(event_data).execute()
+            return len(result.data) > 0
             
         except Exception as e:
             logger.error(f"Failed to log event: {e}")
             return False
 
     def log_anomaly(self, session_id: str, anomaly_type: str, severity: str, details: Dict[str, Any] = None) -> bool:
-        """Log suspicious behavior or anomalies"""
+        """Log suspicious behavior to integrity_events"""
         try:
             client = self._get_client()
             
             anomaly_data = {
                 'id': str(uuid.uuid4()),
                 'session_id': session_id,
-                'anomaly_type': anomaly_type,
+                'event_type': anomaly_type,
                 'severity': severity,
-                'details': details or {},
+                'evidence_details': details or {},
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }
             
-            result = client.table('anomalies').insert(anomaly_data).execute()
-            
-            success = len(result.data) > 0
-            if success:
-                logger.warning(f"Anomaly logged: {anomaly_type} (severity: {severity})")
-            return success
+            result = client.table('integrity_events').insert(anomaly_data).execute()
+            return len(result.data) > 0
             
         except Exception as e:
             logger.error(f"Failed to log anomaly: {e}")
@@ -260,10 +307,8 @@ class SupabaseService:
         """Get recent sessions for a user"""
         try:
             client = self._get_client()
-            result = client.table('sessions').select('*').eq('user_id', user_id).order('start_time', desc=True).limit(limit).execute()
-            
+            result = client.table('interview_sessions').select('*').eq('user_id', user_id).order('start_time', desc=True).limit(limit).execute()
             return result.data if result.data else []
-            
         except Exception as e:
             logger.error(f"Failed to get sessions for user {user_id}: {e}")
             return []
@@ -273,18 +318,13 @@ class SupabaseService:
         try:
             client = self._get_client()
             
-            # Get session info
-            session_result = client.table('sessions').select('*').eq('id', session_id).execute()
+            session_result = client.table('interview_sessions').select('*').eq('id', session_id).execute()
             if not session_result.data:
                 return {}
-            
             session = session_result.data[0]
             
-            # Get questions and answers
-            questions_result = client.table('questions').select('*').eq('session_id', session_id).execute()
-            questions = questions_result.data if questions_result.data else []
+            questions = self.get_session_questions(session_id)
             
-            # Calculate statistics
             total_questions = len(questions)
             answered_questions = len([q for q in questions if q.get('answer_text')])
             avg_score = 0
@@ -293,11 +333,10 @@ class SupabaseService:
                 scores = [q.get('evaluation_score', 0) for q in questions if q.get('evaluation_score')]
                 avg_score = sum(scores) / len(scores) if scores else 0
             
-            # Get events and anomalies
-            events_result = client.table('logs').select('*').eq('session_id', session_id).execute()
+            events_result = client.table('session_events').select('*').eq('session_id', session_id).execute()
             events = events_result.data if events_result.data else []
             
-            anomalies_result = client.table('anomalies').select('*').eq('session_id', session_id).execute()
+            anomalies_result = client.table('integrity_events').select('*').eq('session_id', session_id).execute()
             anomalies = anomalies_result.data if anomalies_result.data else []
             
             return {
@@ -320,13 +359,12 @@ class SupabaseService:
             return {}
 
     def cleanup_old_sessions(self, days_old: int = 30) -> int:
-        """Clean up old completed sessions (for maintenance)"""
+        """Clean up old completed sessions"""
         try:
             client = self._get_client()
             cutoff_date = datetime.now(timezone.utc).replace(tzinfo=timezone.utc) - timedelta(days=days_old)
             
-            # Get old sessions
-            old_sessions = client.table('sessions').select('id').lt('start_time', cutoff_date.isoformat()).eq('status', 'completed').execute()
+            old_sessions = client.table('interview_sessions').select('id').lt('start_time', cutoff_date.isoformat()).eq('status', 'COMPLETED').execute()
             
             if not old_sessions.data:
                 return 0
@@ -334,15 +372,9 @@ class SupabaseService:
             deleted_count = 0
             for session in old_sessions.data:
                 try:
-                    # Delete related records first
-                    client.table('questions').delete().eq('session_id', session['id']).execute()
-                    client.table('logs').delete().eq('session_id', session['id']).execute()
-                    client.table('anomalies').delete().eq('session_id', session['id']).execute()
-                    
-                    # Delete session
-                    client.table('sessions').delete().eq('id', session['id']).execute()
+                    # RLS and ON DELETE CASCADE should handle the rest
+                    client.table('interview_sessions').delete().eq('id', session['id']).execute()
                     deleted_count += 1
-                    
                 except Exception as e:
                     logger.warning(f"Failed to cleanup session {session['id']}: {e}")
             
@@ -357,51 +389,42 @@ class SupabaseService:
         """Get candidate skill profile"""
         try:
             client = self._get_client()
-            result = client.table('skill_profiles').select('*').eq('user_id', user_id).eq('skill_name', skill_name).execute()
-            
-            if result.data:
-                return result.data[0]
-            return None
+            result = client.table('candidate_skill_profiles').select('*').eq('user_id', user_id).eq('skill_name', skill_name).execute()
+            return result.data[0] if result.data else None
         except Exception as e:
-            logger.error(f"Failed to get skill profile for {user_id}/{skill_name}: {e}")
+            logger.error(f"Failed to get skill profile: {e}")
             return None
 
     def update_candidate_skill_profile(self, user_id: str, skill_name: str, profile_data: Dict[str, Any]) -> bool:
         """Update or create a candidate skill profile"""
         try:
             client = self._get_client()
-            
-            # Check if exists
             existing = self.get_candidate_skill_profile(user_id, skill_name)
             
-            # Serialize evidence_history if present (Pydantic objects need to be dicts)
             data_to_store = dict(profile_data)
             data_to_store['updated_at'] = datetime.now(timezone.utc).isoformat()
             
             if existing:
-                result = client.table('skill_profiles').update(data_to_store).eq('id', existing['id']).execute()
+                result = client.table('candidate_skill_profiles').update(data_to_store).eq('id', existing['id']).execute()
             else:
                 data_to_store['id'] = str(uuid.uuid4())
                 data_to_store['user_id'] = user_id
                 data_to_store['skill_name'] = skill_name
-                result = client.table('skill_profiles').insert(data_to_store).execute()
+                result = client.table('candidate_skill_profiles').insert(data_to_store).execute()
                 
-            success = len(result.data) > 0
-            if success:
-                logger.info(f"Skill profile {skill_name} for user {user_id} updated successfully")
-            return success
+            return len(result.data) > 0
         except Exception as e:
-            logger.error(f"Failed to update skill profile for {user_id}/{skill_name}: {e}")
+            logger.error(f"Failed to update skill profile: {e}")
             return False
 
     def get_user_skill_profiles(self, user_id: str) -> List[Dict[str, Any]]:
         """Get all skill profiles for a user"""
         try:
             client = self._get_client()
-            result = client.table('skill_profiles').select('*').eq('user_id', user_id).execute()
+            result = client.table('candidate_skill_profiles').select('*').eq('user_id', user_id).execute()
             return result.data if result.data else []
         except Exception as e:
-            logger.error(f"Failed to get skill profiles for user {user_id}: {e}")
+            logger.error(f"Failed to get skill profiles: {e}")
             return []
 
     def create_recommendations(self, user_id: str, recommendations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -415,7 +438,6 @@ class SupabaseService:
             if 'created_at' not in rec_data:
                 rec_data['created_at'] = datetime.now(timezone.utc).isoformat()
             
-            # Ensure enums are converted to primitive values
             if hasattr(rec_data.get('status'), 'value'):
                 rec_data['status'] = rec_data['status'].value
             if hasattr(rec_data.get('strategy'), 'value'):
@@ -423,7 +445,6 @@ class SupabaseService:
             if hasattr(rec_data.get('priority'), 'value'):
                 rec_data['priority'] = rec_data['priority'].value
             
-            # Always cache in local store for rapid retrieval & resilience
             self._local_recommendations[rec_id] = rec_data
             
             try:
@@ -434,13 +455,13 @@ class SupabaseService:
                 else:
                     persisted.append(rec_data)
             except Exception as e:
-                logger.warning(f"Supabase remote insert into 'recommendations' failed (cached locally): {e}")
+                logger.warning(f"Supabase remote insert failed: {e}")
                 persisted.append(rec_data)
                 
         return persisted
 
     def get_recommendations(self, user_id: str, status: Optional[str] = None, strategy: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
-        """Retrieve recommendations for a user with optional status and strategy filters"""
+        """Retrieve recommendations for a user"""
         try:
             client = self._get_client()
             query = client.table('recommendations').select('*').eq('user_id', user_id)
@@ -452,29 +473,15 @@ class SupabaseService:
             if result.data:
                 return result.data
         except Exception as e:
-            logger.warning(f"Failed to query remote 'recommendations' table: {e}. Falling back to local cache.")
+            logger.warning(f"Failed to query remote table: {e}. Falling back to local cache.")
 
-        # Local cache fallback
-        results = [
-            r for r in self._local_recommendations.values()
-            if r.get('user_id') == user_id
-        ]
+        results = [r for r in self._local_recommendations.values() if r.get('user_id') == user_id]
         if status:
             target_status = status.upper()
-            def match_status(val):
-                s = str(val.value if hasattr(val, 'value') else val).upper()
-                if "." in s:
-                    s = s.split(".")[-1]
-                return s == target_status
-            results = [r for r in results if match_status(r.get('status'))]
+            results = [r for r in results if str(r.get('status', '')).upper() == target_status]
         if strategy:
-            target_strat = str(strategy.value if hasattr(strategy, 'value') else strategy).lower()
-            def match_strat(val):
-                s = str(val.value if hasattr(val, 'value') else val).lower()
-                if "." in s:
-                    s = s.split(".")[-1]
-                return s == target_strat
-            results = [r for r in results if match_strat(r.get('strategy'))]
+            target_strat = str(strategy).lower()
+            results = [r for r in results if str(r.get('strategy', '')).lower() == target_strat]
 
         results.sort(key=lambda x: x.get('created_at', ''), reverse=True)
         return results[:limit]
@@ -487,7 +494,7 @@ class SupabaseService:
             if result.data:
                 return result.data[0]
         except Exception as e:
-            logger.warning(f"Failed to fetch remote recommendation {recommendation_id}: {e}")
+            logger.warning(f"Failed to fetch remote recommendation: {e}")
 
         return self._local_recommendations.get(recommendation_id)
 
@@ -496,7 +503,6 @@ class SupabaseService:
         data = dict(update_data)
         data['updated_at'] = datetime.now(timezone.utc).isoformat()
 
-        # Update local cache
         if recommendation_id in self._local_recommendations:
             self._local_recommendations[recommendation_id].update(data)
 
@@ -505,16 +511,14 @@ class SupabaseService:
             result = client.table('recommendations').update(data).eq('id', recommendation_id).execute()
             return len(result.data) > 0
         except Exception as e:
-            logger.warning(f"Failed to update remote recommendation {recommendation_id} (updated locally): {e}")
+            logger.warning(f"Failed to update remote recommendation: {e}")
             return recommendation_id in self._local_recommendations
 
     def health_check(self) -> Dict[str, Any]:
         """Check database connectivity and health"""
         try:
             client = self._get_client()
-            
-            # Test basic connectivity
-            result = client.table('sessions').select('count', count='exact').execute()
+            result = client.table('interview_sessions').select('id').limit(1).execute()
             
             return {
                 'status': 'healthy',

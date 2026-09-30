@@ -27,47 +27,67 @@ def test_database_schema():
         print(f"📡 Connecting to: {supabase_url}")
         supabase: Client = create_client(supabase_url, supabase_key)
         
-        # Test sessions table
-        print("\n📊 Testing sessions table...")
+        # Test interview_sessions table
+        print("\n📊 Testing interview_sessions table...")
         try:
-            result = supabase.table('sessions').select('*').limit(1).execute()
-            print(f"✅ Sessions table accessible")
+            result = supabase.table('interview_sessions').select('*').limit(1).execute()
+            print(f"✅ interview_sessions table accessible")
             if result.data:
                 print(f"   Columns: {list(result.data[0].keys())}")
         except Exception as e:
-            print(f"❌ Sessions table error: {e}")
+            print(f"❌ interview_sessions table error: {e}")
         
-        # Test questions table
-        print("\n📊 Testing questions table...")
+        # Test interview_questions table
+        print("\n📊 Testing interview_questions table...")
         try:
-            result = supabase.table('questions').select('*').limit(1).execute()
-            print(f"✅ Questions table accessible")
+            result = supabase.table('interview_questions').select('*').limit(1).execute()
+            print(f"✅ interview_questions table accessible")
             if result.data:
                 print(f"   Columns: {list(result.data[0].keys())}")
             else:
                 print("   No questions found (table is empty)")
         except Exception as e:
-            print(f"❌ Questions table error: {e}")
+            print(f"❌ interview_questions table error: {e}")
         
-        # Test logs table
-        print("\n📊 Testing logs table...")
+        # Test session_events table
+        print("\n📊 Testing session_events table...")
         try:
-            result = supabase.table('logs').select('*').limit(1).execute()
-            print(f"✅ Logs table accessible")
+            result = supabase.table('session_events').select('*').limit(1).execute()
+            print(f"✅ session_events table accessible")
             if result.data:
                 print(f"   Columns: {list(result.data[0].keys())}")
         except Exception as e:
-            print(f"❌ Logs table error: {e}")
+            print(f"❌ session_events table error: {e}")
         
-        # Test anomalies table
-        print("\n📊 Testing anomalies table...")
+        # Test integrity_events table
+        print("\n📊 Testing integrity_events table...")
         try:
-            result = supabase.table('anomalies').select('*').limit(1).execute()
-            print(f"✅ Anomalies table accessible")
+            result = supabase.table('integrity_events').select('*').limit(1).execute()
+            print(f"✅ integrity_events table accessible")
             if result.data:
                 print(f"   Columns: {list(result.data[0].keys())}")
         except Exception as e:
-            print(f"❌ Anomalies table error: {e}")
+            print(f"❌ integrity_events table error: {e}")
+            
+        # Test responses table
+        print("\n📊 Testing responses table...")
+        try:
+            result = supabase.table('responses').select('*').limit(1).execute()
+            print(f"✅ responses table accessible")
+            if result.data:
+                print(f"   Columns: {list(result.data[0].keys())}")
+        except Exception as e:
+            print(f"❌ responses table error: {e}")
+        
+        # Test evaluations table
+        print("\n📊 Testing evaluations table...")
+        try:
+            result = supabase.table('evaluations').select('*').limit(1).execute()
+            print(f"✅ evaluations table accessible")
+            if result.data:
+                print(f"   Columns: {list(result.data[0].keys())}")
+        except Exception as e:
+            print(f"❌ evaluations table error: {e}")
         
         print("\n🎉 Database schema test complete!")
         

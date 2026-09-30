@@ -31,10 +31,12 @@ def create_app():
     from app.routes.interview import interview_bp
     from app.routes.logging import logging_bp
     from app.routes.intelligence import intelligence_bp
+    from app.routes.analytics import analytics_bp
     
     app.register_blueprint(interview_bp, url_prefix='/api')
     app.register_blueprint(logging_bp, url_prefix='/api')
     app.register_blueprint(intelligence_bp, url_prefix='/api/intelligence')
+    app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
     
     # Error handlers
     @app.errorhandler(400)

@@ -31,7 +31,7 @@ def test_supabase_connection():
         
         # Test connection by querying a table
         print("🔍 Testing database access...")
-        result = supabase.table('sessions').select('count', count='exact').execute()
+        result = supabase.table('interview_sessions').select('count', count='exact').execute()
         
         print("✅ Supabase connection successful!")
         print(f"   Database accessible: Yes")
@@ -42,31 +42,38 @@ def test_supabase_connection():
         
         # Check sessions table
         try:
-            sessions_result = supabase.table('sessions').select('*').limit(1).execute()
-            print("✅ Sessions table: Accessible")
+            sessions_result = supabase.table('interview_sessions').select('*').limit(1).execute()
+            print("✅ Interview Sessions table: Accessible")
         except Exception as e:
-            print(f"❌ Sessions table error: {e}")
+            print(f"❌ Interview Sessions table error: {e}")
         
         # Check questions table
         try:
-            questions_result = supabase.table('questions').select('*').limit(1).execute()
-            print("✅ Questions table: Accessible")
+            questions_result = supabase.table('interview_questions').select('*').limit(1).execute()
+            print("✅ Interview Questions table: Accessible")
         except Exception as e:
-            print(f"❌ Questions table error: {e}")
+            print(f"❌ Interview Questions table error: {e}")
+        
+        # Check responses table
+        try:
+            responses_result = supabase.table('responses').select('*').limit(1).execute()
+            print("✅ Responses table: Accessible")
+        except Exception as e:
+            print(f"❌ Responses table error: {e}")
         
         # Check logs table
         try:
-            logs_result = supabase.table('logs').select('*').limit(1).execute()
-            print("✅ Logs table: Accessible")
+            logs_result = supabase.table('session_events').select('*').limit(1).execute()
+            print("✅ Session Events table: Accessible")
         except Exception as e:
-            print(f"❌ Logs table error: {e}")
+            print(f"❌ Session Events table error: {e}")
         
         # Check anomalies table
         try:
-            anomalies_result = supabase.table('anomalies').select('*').limit(1).execute()
-            print("✅ Anomalies table: Accessible")
+            anomalies_result = supabase.table('integrity_events').select('*').limit(1).execute()
+            print("✅ Integrity Events table: Accessible")
         except Exception as e:
-            print(f"❌ Anomalies table error: {e}")
+            print(f"❌ Integrity Events table error: {e}")
         
         print("\n🎉 All tests passed! Your Supabase setup is ready.")
         return True

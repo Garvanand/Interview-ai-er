@@ -124,6 +124,10 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
   const [submissionPhase, setSubmissionPhase] = useState<"idle" | "evaluating" | "scoring">("idle")
   const [activeEvaluation, setActiveEvaluation] = useState<any>(null)
   const [evalError, setEvalError] = useState<string | null>(null)
+  
+  // Execution state
+  const [isRunningCode, setIsRunningCode] = useState<boolean>(false)
+  const [runResult, setRunResult] = useState<any>(null)
 
   // Local persistence & autosave status
   const [autosaveStatus, setAutosaveStatus] = useState<"saved" | "saving" | "unsaved">("saved")
@@ -134,6 +138,8 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
   const [timeRemaining, setTimeRemaining] = useState<number>(2700)
   const [isTimerPaused, setIsTimerPaused] = useState<boolean>(false)
   const [securityFlags, setSecurityFlags] = useState<string[]>([])
+  const [integrityReport, setIntegrityReport] = useState<any>(null)
+  const rawEventsQueueRef = useRef<{ type: string, evidence: string }[]>([])
   const [hintsExpanded, setHintsExpanded] = useState<boolean>(false)
   const [hintCount, setHintCount] = useState<number>(0)
 
@@ -311,7 +317,33 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
   }
 
-  // 4. Candidate Submission Flow (Prevent duplicate submission, evaluate via backend orchestrator)
+  // 4. Candidate Run & Submission Flow
+  const handleRunCode = async () => {
+    if (isRunningCode || !currentQuestion || answerMode !== "code") return
+
+    const submissionContent = codeAnswer.trim()
+    if (submissionContent.length < 5) {
+      setEvalError("Code is too short to execute.")
+      return
+    }
+
+    setIsRunningCode(true)
+    setEvalError(null)
+    setRunResult(null)
+    setActiveEvaluation(null)
+
+    try {
+      const result = await apiClient.runCode(submissionContent, selectedLanguage)
+      setRunResult(result)
+    } catch (err: any) {
+      console.error("Execution error:", err)
+      setEvalError(err.message || "Failed to execute code in sandbox.")
+    } finally {
+      setIsRunningCode(false)
+    }
+  }
+
+  // Candidate Submission Flow (Prevent duplicate submission, evaluate via backend orchestrator)
   const handleSubmitSolution = async () => {
     if (isSubmitting || !currentQuestion) return
 
@@ -375,6 +407,7 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
     setIsLoading(true)
     setEvalError(null)
     setActiveEvaluation(null)
+    setRunResult(null)
     setViewingPastQuestion(null)
 
     try {
@@ -436,9 +469,28 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
 
   // 7. Security Flag Handler
   const handleSecurityFlag = (flag: string) => {
-    setSecurityFlags((prev) => [...prev, flag])
-    apiClient.logAnomaly(sessionId, "anti_cheat_flag", "medium", { flag }).catch(() => {})
+    rawEventsQueueRef.current.push({ type: flag, evidence: "" })
   }
+
+  useEffect(() => {
+    if (!sessionId) return
+    const interval = setInterval(async () => {
+      if (rawEventsQueueRef.current.length > 0) {
+        const eventsToFlush = [...rawEventsQueueRef.current]
+        rawEventsQueueRef.current = []
+        try {
+          const report = await apiClient.securityCheck(sessionId, { events: eventsToFlush })
+          setIntegrityReport(report)
+          if (report.review_recommended) {
+            setSecurityFlags(prev => Array.from(new Set([...prev, ...report.signals.map((s: any) => s.signal_type)])))
+          }
+        } catch (err) {
+          rawEventsQueueRef.current.push(...eventsToFlush)
+        }
+      }
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [sessionId])
 
   // 8. On-Demand Hint Request
   const handleRequestHint = () => {
@@ -947,27 +999,99 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
                   Reset Draft
                 </Button>
 
-                <Button
-                  onClick={handleSubmitSolution}
-                  disabled={
-                    isSubmitting ||
-                    (answerMode === "text" ? textAnswer.trim().length < 10 : codeAnswer.trim().length < 10)
-                  }
-                  size="sm"
-                  className="text-xs h-8 px-4"
-                >
-                  {isSubmitting ? (
+                <div className="flex items-center gap-2">
+                  {answerMode === "code" && (
                     <>
-                      <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                      {submissionPhase === "evaluating" ? "Evaluating Solution..." : "Updating Model..."}
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-3.5 w-3.5 mr-1.5" />
-                      Submit Solution
+                      <Button
+                        onClick={handleRunCode}
+                        disabled={isRunningCode || isSubmitting || codeAnswer.trim().length < 5}
+                        size="sm"
+                        variant="secondary"
+                        className="text-xs h-8 px-4"
+                      >
+                        {isRunningCode ? (
+                          <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <Code2 className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Run
+                      </Button>
+                      <Button
+                        onClick={() => alert("AI Review provides non-binding feedback. (Not implemented in this demo)")}
+                        disabled={isSubmitting || codeAnswer.trim().length < 5}
+                        size="sm"
+                        variant="outline"
+                        className="text-xs h-8 px-4 border-amber-500/50 text-amber-600 dark:text-amber-400"
+                      >
+                        AI Review
+                      </Button>
                     </>
                   )}
-                </Button>
+                  <Button
+                    onClick={handleSubmitSolution}
+                    disabled={
+                      isSubmitting ||
+                      (answerMode === "text" ? textAnswer.trim().length < 10 : codeAnswer.trim().length < 10)
+                    }
+                    size="sm"
+                    className="text-xs h-8 px-4"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        {submissionPhase === "evaluating" ? "Evaluating..." : "Updating..."}
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-3.5 w-3.5 mr-1.5" />
+                        Submit
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 2.5 Run Results */}
+          {runResult && !hasCurrentAnswerBeenEvaluated && !isViewingReadOnly && (
+            <div className={`rounded-lg border bg-card p-4 space-y-3 ${runResult.success ? 'border-emerald-500/30' : 'border-destructive/30'}`}>
+              <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">Execution Result</span>
+                  <Badge variant={runResult.success ? 'default' : 'destructive'} className="text-[10px] h-4 px-1.5">
+                    {runResult.success ? "Exited 0" : `Exit ${runResult.exit_code}`}
+                  </Badge>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {runResult.stdout && (
+                  <div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Stdout:</span>
+                    <pre className="p-2 rounded bg-muted/40 text-[11px] font-mono text-foreground/80 overflow-x-auto whitespace-pre-wrap">
+                      {runResult.stdout}
+                    </pre>
+                  </div>
+                )}
+                {runResult.stderr && (
+                  <div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Stderr:</span>
+                    <pre className="p-2 rounded bg-destructive/10 text-[11px] font-mono text-destructive overflow-x-auto whitespace-pre-wrap">
+                      {runResult.stderr}
+                    </pre>
+                  </div>
+                )}
+                {runResult.error && (
+                  <div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">System Error:</span>
+                    <pre className="p-2 rounded bg-destructive/10 text-[11px] font-mono text-destructive overflow-x-auto whitespace-pre-wrap">
+                      {runResult.error}
+                    </pre>
+                  </div>
+                )}
+                {!runResult.stdout && !runResult.stderr && !runResult.error && (
+                  <p className="text-xs text-muted-foreground italic">No output produced.</p>
+                )}
               </div>
             </div>
           )}
@@ -989,32 +1113,61 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
               </div>
 
               {/* Rubric Dimension Subscores */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="p-2 rounded bg-muted/40 border border-border/40 text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase">Accuracy</p>
-                  <p className="text-xs font-mono font-semibold mt-0.5">
-                    {activeEvaluation?.technical_accuracy ?? activeEvaluation?.correctness ?? 75}%
-                  </p>
+              {answerMode === "code" ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="p-2 rounded bg-muted/40 border border-border/40 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Runtime Correctness</p>
+                    <p className="text-xs font-mono font-semibold mt-0.5">
+                      {activeEvaluation?.correctness ?? activeEvaluation?.technical_accuracy ?? 75}%
+                    </p>
+                  </div>
+                  <div className="p-2 rounded bg-muted/40 border border-border/40 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Algorithm/Complexity</p>
+                    <p className="text-xs font-mono font-semibold mt-0.5">
+                      {activeEvaluation?.algorithm_quality ?? activeEvaluation?.problem_solving ?? 75}%
+                    </p>
+                  </div>
+                  <div className="p-2 rounded bg-muted/40 border border-border/40 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Code Quality</p>
+                    <p className="text-xs font-mono font-semibold mt-0.5">
+                      {activeEvaluation?.code_quality ?? activeEvaluation?.readability ?? 75}%
+                    </p>
+                  </div>
+                  <div className="p-2 rounded bg-muted/40 border border-border/40 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Test Case Correctness</p>
+                    <p className="text-xs font-mono font-semibold mt-0.5">
+                      {activeEvaluation?.edge_case_coverage ?? activeEvaluation?.efficiency ?? 75}%
+                    </p>
+                  </div>
                 </div>
-                <div className="p-2 rounded bg-muted/40 border border-border/40 text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase">Problem Solving</p>
-                  <p className="text-xs font-mono font-semibold mt-0.5">
-                    {activeEvaluation?.problem_solving ?? activeEvaluation?.algorithm_quality ?? 75}%
-                  </p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="p-2 rounded bg-muted/40 border border-border/40 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Accuracy</p>
+                    <p className="text-xs font-mono font-semibold mt-0.5">
+                      {activeEvaluation?.technical_accuracy ?? 75}%
+                    </p>
+                  </div>
+                  <div className="p-2 rounded bg-muted/40 border border-border/40 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Problem Solving</p>
+                    <p className="text-xs font-mono font-semibold mt-0.5">
+                      {activeEvaluation?.problem_solving ?? 75}%
+                    </p>
+                  </div>
+                  <div className="p-2 rounded bg-muted/40 border border-border/40 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Conceptual Depth</p>
+                    <p className="text-xs font-mono font-semibold mt-0.5">
+                      {activeEvaluation?.conceptual_depth ?? 75}%
+                    </p>
+                  </div>
+                  <div className="p-2 rounded bg-muted/40 border border-border/40 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Communication</p>
+                    <p className="text-xs font-mono font-semibold mt-0.5">
+                      {activeEvaluation?.communication ?? 75}%
+                    </p>
+                  </div>
                 </div>
-                <div className="p-2 rounded bg-muted/40 border border-border/40 text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase">Code/Depth</p>
-                  <p className="text-xs font-mono font-semibold mt-0.5">
-                    {activeEvaluation?.conceptual_depth ?? activeEvaluation?.code_quality ?? 75}%
-                  </p>
-                </div>
-                <div className="p-2 rounded bg-muted/40 border border-border/40 text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase">Communication</p>
-                  <p className="text-xs font-mono font-semibold mt-0.5">
-                    {activeEvaluation?.communication ?? activeEvaluation?.readability ?? 75}%
-                  </p>
-                </div>
-              </div>
+              )}
 
               {/* Model Evidence & Written Feedback */}
               <div className="space-y-1.5 text-xs">
@@ -1221,12 +1374,17 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
                 Integrity Monitor
               </span>
               <Badge
-                variant={securityFlags.length === 0 ? "secondary" : "destructive"}
+                variant={integrityReport?.review_recommended ? "destructive" : "secondary"}
                 className="text-[10px] h-4 px-1"
               >
-                {securityFlags.length === 0 ? "Normal" : `${securityFlags.length} Flags`}
+                {integrityReport?.review_recommended ? "Review Recommended" : "Normal"}
               </Badge>
             </div>
+            {integrityReport && (
+              <div className="text-[10px] text-muted-foreground mb-1">
+                Confidence: {Math.round(integrityReport.confidence * 100)}% | Anomalies: {integrityReport.total_signals}
+              </div>
+            )}
 
             <AntiCheatGuard
               className="border-0 p-0 bg-transparent text-xs"

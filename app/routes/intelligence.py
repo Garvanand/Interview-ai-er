@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, g
 from app.services.supabase_service import SupabaseService
 from app.services.orchestrator.intelligence import (
     CandidateSkillProfile,
@@ -11,6 +11,7 @@ from app.services.orchestrator.recommendations import (
     RecommendationStatus,
     RecommendationStrategy
 )
+from app.auth import require_auth
 import logging
 from datetime import datetime, timezone
 
@@ -27,9 +28,13 @@ recommendation_engine = RecommendationEngine()
 # ============================================================================
 
 @intelligence_bp.route('/skills/<user_id>', methods=['GET'])
+@require_auth
 def get_user_skills(user_id):
     """Retrieve all longitudinal skill profiles for a user."""
     try:
+        if user_id != g.user_id:
+            return jsonify({'error': True, 'message': 'Unauthorized', 'code': 'UNAUTHORIZED'}), 403
+            
         profiles = supabase_service.get_user_skill_profiles(user_id)
         return jsonify({
             'success': True,
@@ -45,9 +50,13 @@ def get_user_skills(user_id):
         }), 500
 
 @intelligence_bp.route('/skills/<user_id>/<skill_name>', methods=['GET'])
+@require_auth
 def get_user_skill(user_id, skill_name):
     """Retrieve a specific longitudinal skill profile for a user."""
     try:
+        if user_id != g.user_id:
+            return jsonify({'error': True, 'message': 'Unauthorized', 'code': 'UNAUTHORIZED'}), 403
+            
         profile = supabase_service.get_candidate_skill_profile(user_id, skill_name)
         if profile:
             return jsonify({
@@ -79,11 +88,15 @@ def get_user_skill(user_id, skill_name):
         }), 500
 
 @intelligence_bp.route('/skills/<user_id>/evaluate', methods=['POST'])
+@require_auth
 def process_evaluation_evidence(user_id):
     """
     Process new evidence from an evaluation and update the candidate's longitudinal skill profile.
     """
     try:
+        if user_id != g.user_id:
+            return jsonify({'error': True, 'message': 'Unauthorized', 'code': 'UNAUTHORIZED'}), 403
+            
         data = request.json or {}
         skill_name = data.get('skill_name')
         session_id = data.get('session_id')
@@ -152,6 +165,7 @@ def process_evaluation_evidence(user_id):
 # ============================================================================
 
 @intelligence_bp.route('/recommendations/<user_id>', methods=['GET'])
+@require_auth
 def get_user_recommendations(user_id):
     """
     Retrieve persisted recommendations for a candidate with optional filtering.
@@ -161,6 +175,9 @@ def get_user_recommendations(user_id):
       - limit: int (default 20)
     """
     try:
+        if user_id != g.user_id:
+            return jsonify({'error': True, 'message': 'Unauthorized', 'code': 'UNAUTHORIZED'}), 403
+            
         status = request.args.get('status')
         strategy = request.args.get('strategy')
         limit = request.args.get('limit', 20, type=int)
@@ -188,12 +205,16 @@ def get_user_recommendations(user_id):
 
 
 @intelligence_bp.route('/recommendations/<user_id>/generate', methods=['POST'])
+@require_auth
 def generate_recommendations(user_id):
     """
     Generate evidence-backed recommendations for a user based on their longitudinal
     skill profiles and recent interview interaction history.
     """
     try:
+        if user_id != g.user_id:
+            return jsonify({'error': True, 'message': 'Unauthorized', 'code': 'UNAUTHORIZED'}), 403
+            
         data = request.get_json(silent=True) or {}
         session_id = data.get('session_id')
 
@@ -259,6 +280,7 @@ def generate_recommendations(user_id):
 
 
 @intelligence_bp.route('/recommendations/<recommendation_id>/status', methods=['PATCH'])
+@require_auth
 def update_recommendation_status(recommendation_id):
     """
     Update the status of a recommendation (e.g. ACCEPTED, COMPLETED, DISMISSED).
@@ -277,13 +299,17 @@ def update_recommendation_status(recommendation_id):
                 'message': f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
             }), 400
 
+        rec_data = supabase_service.get_recommendation(recommendation_id)
+        if not rec_data or rec_data.get('user_id') != g.user_id:
+            return jsonify({'error': True, 'message': 'Recommendation not found or unauthorized'}), 404
+
         update_payload = {'status': normalized_status}
         if normalized_status == RecommendationStatus.COMPLETED.value:
             update_payload['completed_at'] = datetime.now(timezone.utc).isoformat()
 
         success = supabase_service.update_recommendation(recommendation_id, update_payload)
         if not success:
-            return jsonify({'error': True, 'message': 'Recommendation not found or update failed'}), 404
+            return jsonify({'error': True, 'message': 'Recommendation update failed'}), 500
 
         updated_rec = supabase_service.get_recommendation(recommendation_id)
         return jsonify({
@@ -302,6 +328,7 @@ def update_recommendation_status(recommendation_id):
 
 
 @intelligence_bp.route('/recommendations/<recommendation_id>/evaluate_outcome', methods=['POST'])
+@require_auth
 def evaluate_recommendation_outcome(recommendation_id):
     """
     Evaluate whether the candidate followed the recommendation and whether subsequent
@@ -310,8 +337,8 @@ def evaluate_recommendation_outcome(recommendation_id):
     try:
         data = request.get_json(silent=True) or {}
         rec_data = supabase_service.get_recommendation(recommendation_id)
-        if not rec_data:
-            return jsonify({'error': True, 'message': 'Recommendation not found'}), 404
+        if not rec_data or rec_data.get('user_id') != g.user_id:
+            return jsonify({'error': True, 'message': 'Recommendation not found or unauthorized'}), 404
 
         user_id = rec_data.get('user_id')
         target_skill = rec_data.get('target_skill')

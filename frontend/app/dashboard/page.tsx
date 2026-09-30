@@ -377,6 +377,12 @@ export default function RedesignedDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link href="/analytics">
+              <Button variant="outline" size="sm" className="gap-2 font-mono text-xs">
+                <Activity className="h-3.5 w-3.5 text-primary" />
+                Longitudinal Analytics
+              </Button>
+            </Link>
             <Button 
               variant="outline" 
               size="sm" 

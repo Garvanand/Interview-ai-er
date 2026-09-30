@@ -1,5 +1,6 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app.services.supabase_service import SupabaseService
+from app.auth import require_auth, verify_session_ownership
 import logging
 from datetime import datetime
 
@@ -11,6 +12,7 @@ logging_bp = Blueprint('logging', __name__)
 supabase_service = SupabaseService()
 
 @logging_bp.route('/log_event', methods=['POST'])
+@require_auth
 def log_event():
     """Log a system event"""
     try:
@@ -33,6 +35,9 @@ def log_event():
                 'message': 'session_id is required',
                 'code': 'MISSING_SESSION_ID'
             }), 400
+            
+        if not verify_session_ownership(session_id, g.user_id):
+            return jsonify({'error': True, 'message': 'Unauthorized', 'code': 'UNAUTHORIZED'}), 403
         
         if not event_type:
             return jsonify({
@@ -89,6 +94,7 @@ def log_event():
         }), 500
 
 @logging_bp.route('/log_anomaly', methods=['POST'])
+@require_auth
 def log_anomaly():
     """Log suspicious behavior or anomalies"""
     try:
@@ -112,6 +118,9 @@ def log_anomaly():
                 'message': 'session_id is required',
                 'code': 'MISSING_SESSION_ID'
             }), 400
+            
+        if not verify_session_ownership(session_id, g.user_id):
+            return jsonify({'error': True, 'message': 'Unauthorized', 'code': 'UNAUTHORIZED'}), 403
         
         if not anomaly_type:
             return jsonify({
@@ -184,9 +193,12 @@ def log_anomaly():
         }), 500
 
 @logging_bp.route('/events/<session_id>', methods=['GET'])
+@require_auth
 def get_session_events(session_id):
     """Get all events for a specific session"""
     try:
+        if not verify_session_ownership(session_id, g.user_id):
+            return jsonify({'error': True, 'message': 'Unauthorized', 'code': 'UNAUTHORIZED'}), 403
         # Get events from database
         # Note: This would need to be implemented in SupabaseService
         # For now, we'll return a placeholder response
@@ -210,9 +222,12 @@ def get_session_events(session_id):
         }), 500
 
 @logging_bp.route('/anomalies/<session_id>', methods=['GET'])
+@require_auth
 def get_session_anomalies(session_id):
     """Get all anomalies for a specific session"""
     try:
+        if not verify_session_ownership(session_id, g.user_id):
+            return jsonify({'error': True, 'message': 'Unauthorized', 'code': 'UNAUTHORIZED'}), 403
         # Get anomalies from database
         # Note: This would need to be implemented in SupabaseService
         # For now, we'll return a placeholder response

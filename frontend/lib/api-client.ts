@@ -1,4 +1,5 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api'
+import { getBrowserSupabaseClient } from './supabase'
 
 export interface InterviewSession {
   id: string
@@ -53,13 +54,25 @@ export interface CodeEvaluation {
   evidence?: string
 }
 
-export interface SecurityCheck {
-  is_cheating: boolean
-  risk_score: number
-  anomalies: string[]
-  recommendations: string[]
+export interface SessionIntegrityReport {
+  review_recommended: boolean
+  aggregation_score: number
+  signals: Array<{
+    signal_type: string
+    timestamp: string
+    source: string
+    confidence: number
+    evidence: string
+    severity: 'LOW' | 'MEDIUM' | 'HIGH'
+  }>
+  summary: string
   confidence: number
+  is_cheating?: boolean
+  anomalies?: any[]
+  risk_score?: number
 }
+
+export type SecurityCheck = any
 
 export interface AnswerEvaluation {
   score: number
@@ -160,12 +173,26 @@ class APIClient {
   ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`
     
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string> || {}),
+    }
+
+    try {
+      const supabase = getBrowserSupabaseClient()
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to attach auth token", e)
+    }
+    
     const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
       ...options,
+      headers,
     })
 
     if (!response.ok) {
@@ -220,6 +247,17 @@ class APIClient {
     return res?.data ?? res
   }
 
+  async runCode(code: string, language: string): Promise<any> {
+    const res: any = await this.request('/run_code', {
+      method: 'POST',
+      body: JSON.stringify({
+        code,
+        language,
+      }),
+    })
+    return res?.data ?? res
+  }
+
   async endSession(sessionId: string, finalScore?: number): Promise<any> {
     const res: any = await this.request(`/end_session/${sessionId}`, {
       method: 'POST',
@@ -229,14 +267,15 @@ class APIClient {
   }
 
   // Security & Monitoring
-  async securityCheck(sessionId: string, securityData: any): Promise<SecurityCheck> {
-    return this.request('/security/check', {
+  async securityCheck(sessionId: string, securityData: any): Promise<SessionIntegrityReport> {
+    const res: any = await this.request('/security/check', {
       method: 'POST',
       body: JSON.stringify({
         session_id: sessionId,
         security_data: securityData,
       }),
     })
+    return res?.data ?? res
   }
 
   async getSecurityReport(sessionId: string): Promise<any> {
@@ -339,6 +378,23 @@ class APIClient {
     })
   }
 
+  // Longitudinal Analytics
+  async getLongitudinalAnalytics(userId: string, filters?: AnalyticsFilterParams): Promise<{ success: boolean; data: LongitudinalAnalyticsResponse }> {
+    const params = new URLSearchParams()
+    if (filters?.start_date) params.append('start_date', filters.start_date)
+    if (filters?.end_date) params.append('end_date', filters.end_date)
+    if (filters?.interview_type) params.append('interview_type', filters.interview_type)
+    if (filters?.skill) params.append('skill', filters.skill)
+    if (filters?.difficulty) params.append('difficulty', filters.difficulty)
+    if (filters?.question_type) params.append('question_type', filters.question_type)
+    const qs = params.toString() ? `?${params.toString()}` : ''
+    return this.request(`/analytics/${userId}${qs}`)
+  }
+
+  async getAnalyticsFilterOptions(userId: string): Promise<{ success: boolean; data: AnalyticsFilterOptions }> {
+    return this.request(`/analytics/filter-options/${userId}`)
+  }
+
   // System Health
   async healthCheck(): Promise<{ status: string; database: string }> {
     return this.request('/health')
@@ -347,6 +403,209 @@ class APIClient {
   async getMetrics(): Promise<any> {
     return this.request('/metrics')
   }
+}
+
+export interface AnalyticsFilterParams {
+  start_date?: string
+  end_date?: string
+  interview_type?: string
+  skill?: string
+  difficulty?: string
+  question_type?: string
+}
+
+export interface ScoreTrendPoint {
+  session_id: string
+  session_index: number
+  date: string
+  interview_type: string
+  raw_score: number
+  difficulty_adjusted_score: number
+  sma_3: number | null
+  ema: number | null
+  difficulty_level: string
+  questions_count: number
+  is_completed: boolean
+}
+
+export interface ScoreTrendSummary {
+  data_points: ScoreTrendPoint[]
+  linear_regression_slope: number
+  r_squared: number
+  trajectory_classification: 'significant_improvement' | 'moderate_improvement' | 'stable' | 'moderate_decline' | 'concerning_decline' | 'insufficient_data'
+  baseline_score: number
+  current_moving_average: number
+  difficulty_adjusted_current: number
+  total_sessions_analyzed: number
+  methodology: string
+}
+
+export interface SkillTrendSummary {
+  skill_name: string
+  evidence_count: number
+  estimated_proficiency: number
+  decayed_proficiency: number
+  recent_average: number
+  historical_average: number
+  net_delta: number
+  volatility_sd: number
+  confidence: 'insufficient evidence' | 'low confidence' | 'medium confidence' | 'high confidence'
+  trend_status: 'demonstrated_growth' | 'plateaued' | 'skill_regression' | 'uncalibrated'
+  last_evaluated: string | null
+  score_history: Array<{
+    score: number
+    difficulty: string
+    created_at?: string
+  }>
+}
+
+export interface QuestionTypePerformance {
+  question_type: string
+  total_attempted: number
+  average_score: number
+  median_score: number
+  pass_rate: number
+  top_strengths: string[]
+  top_weaknesses: string[]
+}
+
+export interface DifficultyLevelStats {
+  level: string
+  total_attempted: number
+  average_score: number
+  pass_rate: number
+  standard_deviation: number
+}
+
+export interface DifficultyProgression {
+  levels: Record<string, DifficultyLevelStats>
+  promotion_transitions_attempted: number
+  promotion_sustained_rate: number
+  current_performance_frontier: 'beginner' | 'intermediate' | 'advanced'
+  methodology: string
+}
+
+export interface ConsistencyAnalysis {
+  score_count: number
+  mean_score: number
+  median_score: number
+  standard_deviation: number
+  coefficient_of_variation: number
+  iqr: number
+  min_score: number
+  max_score: number
+  score_range: number
+  consistency_index: number
+  consistency_category: 'Highly Consistent' | 'Moderately Consistent' | 'Volatile / High Variance' | 'Insufficient Data'
+  methodology: string
+}
+
+export interface RepeatedWeakness {
+  weakness_cluster: string
+  canonical_label: string
+  total_occurrences: number
+  distinct_sessions_count: number
+  session_percentage: number
+  recency_flag: boolean
+  persistence_status: 'persistent_blocker' | 'emerging_issue' | 'resolving' | 'sporadic'
+  evidence_snippets: string[]
+  target_skill?: string
+}
+
+export interface RecommendationImpact {
+  recommendation_id: string
+  target_skill: string
+  strategy: string
+  reason: string
+  completed_at: string | null
+  baseline_proficiency: number
+  post_proficiency: number | null
+  delta: number | null
+  outcome_status: 'verified_improvement' | 'no_measurable_change' | 'regression' | 'awaiting_evidence'
+  post_questions_evaluated: number
+}
+
+export interface RecentVsHistorical {
+  recent_period_label: string
+  historical_period_label: string
+  recent_average_score: number
+  historical_average_score: number
+  score_delta: number
+  score_pct_change: number
+  recent_advanced_ratio: number
+  historical_advanced_ratio: number
+  recent_consistency_cv: number
+  historical_consistency_cv: number
+  recent_sample_size: number
+  historical_sample_size: number
+  statistically_meaningful: boolean
+  verdict: string
+}
+
+export interface CompletionBehavior {
+  total_sessions: number
+  completed_sessions: number
+  abandoned_sessions: number
+  completion_rate: number
+  avg_duration_minutes: number
+  avg_questions_per_session: number
+  completed_avg_score: number
+  abandoned_avg_score: number
+}
+
+export interface NextPracticeRecommendation {
+  priority: number
+  target_skill: string
+  recommended_difficulty: string
+  question_type: string
+  learning_objective: string
+  rationale: string
+  evidence_context: string
+}
+
+export interface SessionEvidenceAudit {
+  session_id: string
+  interview_type: string
+  start_time: string
+  score: number
+  status: string
+  questions: Array<{
+    question_id: string
+    question_text: string
+    difficulty: string
+    skill_focus: string
+    score: number
+    feedback: string
+    is_code: boolean
+  }>
+}
+
+export interface LongitudinalAnalyticsResponse {
+  user_id: string
+  generated_at: string
+  filters_applied: AnalyticsFilterParams
+  score_trends: ScoreTrendSummary
+  skill_trends: SkillTrendSummary[]
+  question_type_performance: QuestionTypePerformance[]
+  difficulty_progression: DifficultyProgression
+  consistency: ConsistencyAnalysis
+  repeated_weaknesses: RepeatedWeakness[]
+  recommendation_impact: RecommendationImpact[]
+  recent_vs_historical: RecentVsHistorical
+  completion_behavior: CompletionBehavior
+  next_practice_recommendations: NextPracticeRecommendation[]
+  session_evidence: SessionEvidenceAudit[]
+}
+
+export interface AnalyticsFilterOptions {
+  interview_types: string[]
+  skills: string[]
+  difficulties: string[]
+  question_types: string[]
+  earliest_date: string | null
+  latest_date: string | null
+  total_sessions_count: number
+  total_questions_count: number
 }
 
 export const apiClient = new APIClient()
