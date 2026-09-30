@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 import json
 
@@ -53,19 +53,42 @@ class AssessmentEngine:
             "metadata": metadata
         }
 
-    def generate_question(self, interview_type: str, difficulty: str = 'medium', topic: Optional[str] = None) -> Dict[str, Any]:
-        """Generate an interview question using the constrained schema."""
-        context = f"Topic: {topic}" if topic else f"Interview Type: {self.interview_types.get(interview_type, interview_type)}"
+    def generate_question(
+        self, 
+        interview_type: str, 
+        difficulty: str = 'intermediate', 
+        topic: Optional[str] = None,
+        skill_focus: Optional[str] = None,
+        target_role: Optional[str] = None,
+        excluded_questions: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Generate an interview question using the constrained schema with duplicate prevention."""
+        context_parts = []
+        if target_role:
+            context_parts.append(f"Target Role: {target_role}")
+        if skill_focus:
+            context_parts.append(f"Core Skill Focus: {skill_focus}")
+        if topic:
+            context_parts.append(f"Topic: {topic}")
+        context_parts.append(f"Interview Type: {self.interview_types.get(interview_type, interview_type)}")
         
+        context = "\n".join(context_parts)
+        
+        exclusions_text = ""
+        if excluded_questions:
+            exclusions_list = "\n".join([f"- {q}" for q in excluded_questions[-10:]])
+            exclusions_text = f"\nCRITICAL: Avoid asking any of the following questions or variations:\n{exclusions_list}\n"
+            
         prompt = f"""
         Generate a {difficulty} difficulty interview question.
         
         Requirements:
-        - Question should be clear and specific
+        - Question should be clear, specific, and realistic for a real tech interview
+        - Tailor the question specifically to the Skill Focus and Target Role
         - Include context and constraints if applicable
         - Difficulty should strictly match {difficulty} level
         - Describe expected reasoning and rubric clearly
-        
+        {exclusions_text}
         Context:
         {context}
         """
@@ -106,16 +129,36 @@ class AssessmentEngine:
         response = self._execute_with_telemetry(prompt, CodeEvaluation)
         return {**response["data"], "_metadata": response["metadata"]}
 
-    def generate_follow_up_question(self, original_question: str, candidate_answer: str, evaluation: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate a follow up question based on previous answer."""
+    def generate_follow_up_question(
+        self, 
+        original_question: str, 
+        candidate_answer: str, 
+        evaluation: Dict[str, Any],
+        weakness: Optional[str] = None,
+        skill_focus: Optional[str] = None,
+        difficulty: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Generate a targeted follow up question based on previous answer and specific weakness."""
+        targeted_clause = ""
+        if weakness:
+            targeted_clause += f"\nSpecific weakness to probe: {weakness}"
+        if skill_focus:
+            targeted_clause += f"\nSkill focus: {skill_focus}"
+        if difficulty:
+            targeted_clause += f"\nTarget difficulty: {difficulty}"
+            
         prompt = f"""
-        Based on this question and the candidate's answer, generate a single follow-up question that probes deeper into their weaknesses or tests their limits on the topic.
+        Based on this interview exchange, generate a targeted follow-up question.
         
         Original Question: {original_question}
         Candidate Answer: {candidate_answer}
-        Evaluation Notes: {evaluation.get('weaknesses', [])}
+        Identified Weaknesses: {evaluation.get('weaknesses', [])}
+        {targeted_clause}
         
-        Generate a single follow up question in the same format.
+        Instructions:
+        - Directly challenge the candidate on their gap or incomplete reasoning.
+        - Do NOT ask a generic question like "Can you explain more?".
+        - Ask a concrete scenario, tradeoff, or edge case testing the exact weakness.
         """
         response = self._execute_with_telemetry(prompt, Question)
         return {**response["data"], "_metadata": response["metadata"]}

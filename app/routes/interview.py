@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from app.services.supabase_service import SupabaseService
 from app.services.ai import AssessmentEngine, GeminiProvider
 from app.services.security_service import SecurityService
+from app.services.orchestrator import InterviewOrchestrator
 import logging
 from datetime import datetime
 import uuid
@@ -14,6 +15,7 @@ interview_bp = Blueprint('interview', __name__)
 supabase_service = SupabaseService()
 ai_engine = AssessmentEngine(GeminiProvider())
 security_service = SecurityService()
+orchestrator = InterviewOrchestrator(supabase_service, ai_engine)
 
 @interview_bp.route('/start_session', methods=['POST'])
 def start_session():
@@ -68,6 +70,14 @@ def start_session():
         
         session_id = result['session_id']
         
+        # Initialize orchestrator state machine
+        state = orchestrator.initialize_session(
+            session_id=session_id,
+            user_id=user_id,
+            target_role=interview_type,
+            interview_type=interview_type
+        )
+        
         # Log session start event
         supabase_service.log_event(session_id, 'session_started', {
             'user_id': user_id,
@@ -84,7 +94,10 @@ def start_session():
                 'session_id': session_id,
                 'user_id': user_id,
                 'interview_type': interview_type,
-                'start_time': result['data']['start_time']
+                'start_time': result['data']['start_time'],
+                'phase': state.phase.value,
+                'difficulty': state.difficulty.value,
+                'skills': list(state.skills_distribution.keys())
             }
         }), 201
         
@@ -98,7 +111,7 @@ def start_session():
 
 @interview_bp.route('/get_question', methods=['GET'])
 def get_question():
-    """Get a new interview question"""
+    """Get a new interview question backed by stateful orchestrator"""
     try:
         session_id = request.args.get('session_id')
         interview_type = request.args.get('interview_type')
@@ -110,18 +123,6 @@ def get_question():
                 'message': 'session_id is required',
                 'code': 'MISSING_SESSION_ID'
             }), 400
-        
-        if not interview_type:
-            return jsonify({
-                'error': True,
-                'message': 'interview_type is required',
-                'code': 'MISSING_INTERVIEW_TYPE'
-            }), 400
-        
-        # Validate difficulty level
-        valid_difficulties = ['beginner', 'intermediate', 'advanced']
-        if difficulty not in valid_difficulties:
-            difficulty = 'intermediate'
         
         # Verify session exists and is active
         session = supabase_service.get_session(session_id)
@@ -139,39 +140,22 @@ def get_question():
                 'code': 'SESSION_INACTIVE'
             }), 400
         
-        # Generate question using AI Engine
-        question_data = ai_engine.generate_question(interview_type, difficulty)
-        question_text_str = question_data.get("question_text", str(question_data))
+        # Generate next question through stateful orchestrator
+        orchestration_result = orchestrator.get_next_question(session_id)
         
-        # Store question in database
-        question_id = supabase_service.store_question(session_id, question_text_str, interview_type)
-        
-        if not question_id:
+        if orchestration_result.get('is_completed'):
             return jsonify({
-                'error': True,
-                'message': 'Failed to store question',
-                'code': 'QUESTION_STORAGE_FAILED'
-            }), 500
-        
-        # Log question generation event
-        supabase_service.log_event(session_id, 'question_generated', {
-            'question_id': question_id,
-            'difficulty': difficulty,
-            'interview_type': interview_type
-        })
-        
-        logger.info(f"Question generated successfully: {question_id} for session {session_id}")
+                'error': False,
+                'message': 'Interview has completed',
+                'data': orchestration_result
+            }), 200
+            
+        logger.info(f"Question delivered by orchestrator: {orchestration_result.get('question_id')} for session {session_id}")
         
         return jsonify({
             'error': False,
             'message': 'Question retrieved successfully',
-            'data': {
-                'question_id': question_id,
-                'question_text': question_text_str,
-                'session_id': session_id,
-                'difficulty': difficulty,
-                'interview_type': interview_type
-            }
+            'data': orchestration_result
         }), 200
         
     except Exception as e:
@@ -249,54 +233,28 @@ def submit_answer():
                 'code': 'QUESTION_NOT_FOUND'
             }), 404
         
-        # Evaluate answer using AI Engine
-        evaluation = ai_engine.evaluate_answer(
-            question['question_text'], 
-            answer_text, 
-            session['interview_type']
+        # Evaluate answer and adapt difficulty using Orchestrator
+        eval_result = orchestrator.record_and_evaluate_answer(
+            session_id=session_id,
+            question_id=question_id,
+            answer_text=answer_text,
+            is_code=False
         )
         
-        # Store answer and evaluation
-        success = supabase_service.store_answer(session_id, question_id, answer_text, evaluation)
-        
-        if not success:
-            return jsonify({
-                'error': True,
-                'message': 'Failed to store answer',
-                'code': 'ANSWER_STORAGE_FAILED'
-            }), 500
-        
-        # Update session score
-        answered_questions = [q for q in questions if q.get('evaluation_score') is not None]
-        total_score = sum(q.get('evaluation_score', 0) for q in answered_questions) + evaluation.get('overall_score', 0)
-        new_score = total_score / (len(answered_questions) + 1)
-        supabase_service.update_session_score(session_id, new_score)
-        
-        # Log answer submission event
-        supabase_service.log_event(session_id, 'answer_submitted', {
-            'question_id': question_id,
-            'answer_length': len(answer_text),
-            'evaluation_score': evaluation.get('overall_score', 0)
-        })
-        
-        # Check for potential anomalies
-        if evaluation.get('overall_score', 0) < 30:
-            supabase_service.log_anomaly(
-                session_id, 
-                'low_score', 
-                'medium', 
-                {'score': evaluation.get('overall_score', 0), 'question_id': question_id}
-            )
-        
-        logger.info(f"Answer submitted successfully for question {question_id}")
+        logger.info(f"Answer evaluated by orchestrator for question {question_id}: score {eval_result['score']}")
         
         return jsonify({
             'error': False,
             'message': 'Answer submitted successfully',
             'data': {
                 'question_id': question_id,
-                'evaluation': evaluation,
-                'session_score': new_score
+                'evaluation': eval_result['evaluation'],
+                'session_score': eval_result['session_score'],
+                'current_difficulty': eval_result['current_difficulty'],
+                'difficulty_adjusted': eval_result['difficulty_adjusted'],
+                'current_phase': eval_result['current_phase'],
+                'is_last_question': eval_result['is_last_question'],
+                'skills_overview': eval_result['skills_overview']
             }
         }), 200
         
@@ -338,13 +296,36 @@ def get_session_details(session_id):
             'code': 'INTERNAL_ERROR'
         }), 500
 
+@interview_bp.route('/session/<session_id>/state', methods=['GET'])
+def get_session_orchestrator_state(session_id):
+    """Get backend-authoritative orchestrator state for a session"""
+    try:
+        session = supabase_service.get_session(session_id)
+        if not session:
+            return jsonify({
+                'error': True,
+                'message': 'Session not found',
+                'code': 'SESSION_NOT_FOUND'
+            }), 404
+        
+        state_data = orchestrator.get_session_state(session_id)
+        return jsonify({
+            'error': False,
+            'message': 'Session state retrieved successfully',
+            'data': state_data
+        }), 200
+    except Exception as e:
+        logger.error(f"Unexpected error in get_session_orchestrator_state: {e}")
+        return jsonify({
+            'error': True,
+            'message': 'Internal server error',
+            'code': 'INTERNAL_ERROR'
+        }), 500
+
 @interview_bp.route('/end_session/<session_id>', methods=['POST'])
 def end_session(session_id):
-    """End an interview session"""
+    """End an interview session with orchestrated synthesis"""
     try:
-        data = request.get_json() or {}
-        final_score = data.get('final_score')
-        
         # Get session details
         session = supabase_service.get_session(session_id)
         if not session:
@@ -361,32 +342,13 @@ def end_session(session_id):
                 'code': 'SESSION_ALREADY_COMPLETED'
             }), 400
         
-        # End the session
-        success = supabase_service.end_session(session_id, final_score)
-        
-        if not success:
-            return jsonify({
-                'error': True,
-                'message': 'Failed to end session',
-                'code': 'SESSION_END_FAILED'
-            }), 500
-        
-        # Log session end event
-        supabase_service.log_event(session_id, 'session_ended', {
-            'final_score': final_score,
-            'duration_minutes': None  # Could calculate from start_time
-        })
-        
-        logger.info(f"Session {session_id} ended successfully")
+        final_result = orchestrator.finalize_interview(session_id)
+        logger.info(f"Session {session_id} finalized successfully by orchestrator")
         
         return jsonify({
             'error': False,
             'message': 'Session ended successfully',
-            'data': {
-                'session_id': session_id,
-                'status': 'completed',
-                'final_score': final_score
-            }
+            'data': final_result
         }), 200
         
     except Exception as e:
@@ -521,49 +483,24 @@ def submit_code():
                 'code': 'QUESTION_NOT_FOUND'
             }), 404
         
-        # Evaluate code using AI Engine
-        evaluation = ai_engine.evaluate_code(
-            code, 
-            language, 
-            question['question_text']
+        # Evaluate code and adapt difficulty using Orchestrator
+        eval_result = orchestrator.record_and_evaluate_answer(
+            session_id=session_id,
+            question_id=question_id,
+            answer_text=code,
+            is_code=True,
+            language=language
         )
-        
-        # Store code submission and evaluation
-        success = supabase_service.store_code_submission(
-            session_id, 
-            question_id, 
-            code, 
-            language, 
-            evaluation
-        )
-        
-        if not success:
-            return jsonify({
-                'error': True,
-                'message': 'Failed to store code submission',
-                'code': 'CODE_STORAGE_FAILED'
-            }), 500
-        
-        # Update session score
-        answered_questions = [q for q in questions if q.get('code_evaluation_score') is not None or q.get('evaluation_score') is not None]
-        total_score = sum(q.get('code_evaluation_score') or q.get('evaluation_score', 0) for q in answered_questions) + evaluation.get('overall_score', 0)
-        new_score = total_score / (len(answered_questions) + 1)
-        supabase_service.update_session_score(session_id, new_score)
-        
-        # Log the code submission
-        supabase_service.log_event(session_id, 'code_submitted', {
-            'question_id': question_id,
-            'language': language,
-            'code_length': len(code),
-            'evaluation_score': evaluation.get('overall_score', 0)
-        })
         
         return jsonify({
             'error': False,
             'message': 'Code submitted successfully',
             'data': {
-                'evaluation': evaluation,
-                'session_score': new_score
+                'evaluation': eval_result['evaluation'],
+                'session_score': eval_result['session_score'],
+                'current_difficulty': eval_result['current_difficulty'],
+                'current_phase': eval_result['current_phase'],
+                'is_last_question': eval_result['is_last_question']
             }
         }), 200
         
