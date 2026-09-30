@@ -159,7 +159,50 @@ COMMENT ON TABLE security_events IS 'Tracks security-related events during inter
 COMMENT ON TABLE code_submissions IS 'Stores and tracks code submissions with evaluation';
 COMMENT ON TABLE practice_sessions IS 'Tracks practice mode sessions and progress';
 
--- 14. Verify the migration
+-- 14. Create skill_profiles table for longitudinal candidate intelligence
+CREATE TABLE IF NOT EXISTS skill_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
+    skill_name VARCHAR(150) NOT NULL,
+    estimated_proficiency DECIMAL(5,2) DEFAULT 0.00,
+    confidence VARCHAR(50) DEFAULT 'insufficient evidence',
+    evidence_count INTEGER DEFAULT 0,
+    recent_performance DECIMAL(5,2) DEFAULT 0.00,
+    historical_performance DECIMAL(5,2) DEFAULT 0.00,
+    improvement_trend VARCHAR(50) DEFAULT 'neutral',
+    last_evaluated_timestamp TIMESTAMP WITH TIME ZONE,
+    evidence_history JSONB DEFAULT '[]',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 15. Create recommendations table for personalized candidate next actions
+CREATE TABLE IF NOT EXISTS recommendations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
+    session_id UUID,
+    target_skill VARCHAR(150) NOT NULL,
+    strategy VARCHAR(50) NOT NULL,
+    reason TEXT NOT NULL,
+    evidence JSONB DEFAULT '{}',
+    recommended_activity JSONB DEFAULT '{}',
+    priority VARCHAR(20) NOT NULL,
+    expected_learning_objective TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    baseline_proficiency DECIMAL(5,2) DEFAULT 0.00,
+    post_outcome_proficiency DECIMAL(5,2),
+    outcome_delta DECIMAL(5,2),
+    outcome_assessment VARCHAR(50)
+);
+
+CREATE INDEX IF NOT EXISTS idx_recommendations_user_id ON recommendations(user_id);
+CREATE INDEX IF NOT EXISTS idx_recommendations_status ON recommendations(status);
+CREATE INDEX IF NOT EXISTS idx_skill_profiles_user_id ON skill_profiles(user_id);
+
+-- 16. Verify the migration
 DO $$
 BEGIN
     -- Check if all required columns exist

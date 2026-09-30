@@ -3,40 +3,46 @@ from typing import List, Dict
 ROLE_SKILL_MAP: Dict[str, List[str]] = {
     "Software Engineer": [
         "Data Structures & Algorithms",
-        "System Architecture",
-        "API Design & Integration",
-        "Concurrency & Parallelism",
-        "Testing & Reliability"
+        "System Design",
+        "Problem Solving",
+        "Programming Fundamentals",
+        "Debugging",
+        "Database Concepts",
+        "Communication",
+        "Behavioral Reasoning"
     ],
     "Data Scientist": [
-        "Statistical Modeling & Probability",
-        "Machine Learning Algorithms",
-        "Data Pipelines & SQL",
-        "Feature Engineering",
-        "Model Evaluation & Ethics"
+        "Statistics",
+        "Machine Learning",
+        "Problem Solving",
+        "Database Concepts",
+        "Programming Fundamentals",
+        "Communication",
+        "Behavioral Reasoning"
     ],
     "Product Manager": [
-        "Product Strategy & Vision",
-        "Metrics & Experimentation",
-        "User Empathy & Problem Definition",
-        "Prioritization & Tradeoffs",
-        "Technical Communication"
+        "Problem Solving",
+        "System Design",
+        "Communication",
+        "Behavioral Reasoning",
+        "Data Structures & Algorithms"
     ],
     "DevOps Engineer": [
-        "CI/CD Pipeline Design",
-        "Containerization & Orchestration",
-        "Infrastructure as Code",
-        "Observability & Incident Management",
-        "Cloud Security & Compliance"
+        "System Design",
+        "Database Concepts",
+        "Programming Fundamentals",
+        "Debugging",
+        "Problem Solving",
+        "Communication"
     ]
 }
 
 DEFAULT_SKILLS = [
-    "Core Problem Solving",
-    "System Architecture",
-    "Code Quality & Design",
-    "Debugging & Edge Cases",
-    "Performance Optimization"
+    "Problem Solving",
+    "Programming Fundamentals",
+    "System Design",
+    "Debugging",
+    "Communication"
 ]
 
 def get_skills_for_role(role_or_type: str) -> List[str]:

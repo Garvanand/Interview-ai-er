@@ -58,6 +58,55 @@ export interface AnswerEvaluation {
   problem_solving: number
 }
 
+export interface CandidateSkillProfile {
+  id?: string
+  user_id: string
+  skill_name: string
+  estimated_proficiency: number
+  confidence: 'insufficient evidence' | 'low confidence' | 'medium confidence' | 'high confidence'
+  evidence_count: number
+  recent_performance: number
+  historical_performance: number
+  improvement_trend: 'improving' | 'declining' | 'stable' | 'neutral'
+  last_evaluated_timestamp?: string
+  evidence_history?: Array<{
+    session_id: string
+    question_id: string
+    score: number
+    timestamp: string
+  }>
+}
+
+export interface Recommendation {
+  id: string
+  user_id: string
+  session_id?: string
+  target_skill: string
+  strategy: 'next_interview' | 'practice_session' | 'skill_reinforcement' | 'weak_signal_validation' | 'review_prior_mistakes'
+  reason: string
+  evidence: Record<string, any>
+  recommended_activity: {
+    type?: string
+    title?: string
+    description?: string
+    difficulty?: string
+    progression_stages?: string[]
+    remediation_steps?: string[]
+    focus_areas?: string[]
+    topics?: string[]
+    [key: string]: any
+  }
+  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+  expected_learning_objective: string
+  status: 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'DISMISSED'
+  created_at: string
+  completed_at?: string
+  baseline_proficiency: number
+  post_outcome_proficiency?: number
+  outcome_delta?: number
+  outcome_assessment?: 'improved' | 'declined' | 'unchanged' | 'pending'
+}
+
 class APIClient {
   private async request<T>(
     endpoint: string,
@@ -196,6 +245,40 @@ class APIClient {
         answer,
         interview_type: interviewType,
       }),
+    })
+  }
+
+  // Candidate Skill Intelligence & Recommendations
+  async getCandidateSkills(userId: string): Promise<{ success: boolean; user_id: string; profiles: CandidateSkillProfile[] }> {
+    return this.request(`/intelligence/skills/${userId}`)
+  }
+
+  async getRecommendations(userId: string, status?: string, strategy?: string): Promise<{ success: boolean; count: number; recommendations: Recommendation[] }> {
+    const params = new URLSearchParams()
+    if (status) params.append('status', status)
+    if (strategy) params.append('strategy', strategy)
+    const qs = params.toString() ? `?${params.toString()}` : ''
+    return this.request(`/intelligence/recommendations/${userId}${qs}`)
+  }
+
+  async generateRecommendations(userId: string, sessionId?: string): Promise<{ success: boolean; count: number; recommendations: Recommendation[] }> {
+    return this.request(`/intelligence/recommendations/${userId}/generate`, {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sessionId })
+    })
+  }
+
+  async updateRecommendationStatus(recommendationId: string, status: string): Promise<{ success: boolean; recommendation: Recommendation }> {
+    return this.request(`/intelligence/recommendations/${recommendationId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    })
+  }
+
+  async evaluateRecommendationOutcome(recommendationId: string, currentProficiency?: number): Promise<{ success: boolean; outcome: any; recommendation: Recommendation }> {
+    return this.request(`/intelligence/recommendations/${recommendationId}/evaluate_outcome`, {
+      method: 'POST',
+      body: JSON.stringify({ current_proficiency: currentProficiency })
     })
   }
 

@@ -16,6 +16,8 @@ from .models import (
     OrchestratorState
 )
 from .skills import get_skills_for_role
+from .intelligence import CandidateSkillProfile, SkillEvidence, SkillEvidenceAggregator
+from .recommendations import RecommendationEngine
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,8 @@ class InterviewOrchestrator:
     def __init__(self, supabase_service: Optional[SupabaseService] = None, ai_engine: Optional[AssessmentEngine] = None):
         self.supabase = supabase_service or SupabaseService()
         self.ai = ai_engine or AssessmentEngine(GeminiProvider())
+        self.recommendation_engine = RecommendationEngine()
+        self.intelligence_aggregator = SkillEvidenceAggregator()
         self._states: Dict[str, OrchestratorState] = {}
 
     def _transition_to(self, state: OrchestratorState, next_phase: InterviewPhase, reason: Optional[str] = None) -> bool:
@@ -493,6 +497,36 @@ class InterviewOrchestrator:
             'assessment': state.final_assessment
         })
 
+        # Generate personalized, explainable recommendations on top of skill signals
+        final_recommendations = []
+        try:
+            skill_profiles = []
+            for name, sig in state.skills_distribution.items():
+                skill_profiles.append(CandidateSkillProfile(
+                    user_id=state.user_id,
+                    skill_name=name,
+                    estimated_proficiency=sig.average_score,
+                    confidence="medium confidence" if sig.questions_count >= 2 else "low confidence",
+                    evidence_count=sig.questions_count,
+                    recent_performance=sig.average_score,
+                    historical_performance=sig.average_score,
+                    improvement_trend="neutral",
+                    last_evaluated_timestamp=datetime.now(timezone.utc).isoformat()
+                ))
+
+            session_questions = self.supabase.get_session_questions(session_id)
+            recs = self.recommendation_engine.generate_recommendations(
+                user_id=state.user_id,
+                skill_profiles=skill_profiles,
+                session_questions=session_questions,
+                session_id=session_id
+            )
+            recs_dict = [r.model_dump() for r in recs]
+            persisted = self.supabase.create_recommendations(state.user_id, recs_dict)
+            final_recommendations = persisted
+        except Exception as e:
+            logger.warning(f"Recommendation generation during interview finalization skipped: {e}")
+
         return {
             'session_id': session_id,
             'phase': InterviewPhase.COMPLETED.value,
@@ -502,7 +536,8 @@ class InterviewOrchestrator:
             'skills_distribution': {
                 name: sig.model_dump() for name, sig in state.skills_distribution.items()
             },
-            'questions_answered': len(scores)
+            'questions_answered': len(scores),
+            'recommendations': final_recommendations
         }
 
     def get_session_state(self, session_id: str) -> Dict[str, Any]:
