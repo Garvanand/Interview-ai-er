@@ -132,11 +132,15 @@ class QuestionDifficultyPredictor:
         word_count = len(text.split())
 
         has_advanced_keywords = bool(re.search(
-            r"\b(dynamic programming|segment tree|trie|np-hard|shortest path|concurrency|distributed|paxos|raft|b-tree|lock-free|sharding|memory leak)\b",
+            r"\b(dynamic programming|segment tree|trie|np-hard|shortest path|concurrency|distributed|paxos|raft|b-tree|lock-free|sharding|memory leak|advanced|hard|complex)\b",
             text
         ))
         has_intermediate_keywords = bool(re.search(
-            r"\b(binary search|recursion|tree|graph|hash table|stack|queue|sort|sql|join|index|decorator|memoization|generator)\b",
+            r"\b(binary search|recursion|tree|graph|hash table|stack|queue|sort|sql|join|index|decorator|memoization|generator|intermediate|medium)\b",
+            text
+        ))
+        has_beginner_keywords = bool(re.search(
+            r"\b(beginner|easy|basic|simple|introductory|fundamentals)\b",
             text
         ))
 
@@ -146,9 +150,12 @@ class QuestionDifficultyPredictor:
         elif has_intermediate_keywords or word_count > 60:
             diff = "intermediate"
             probs = {"beginner": 0.2, "intermediate": 0.6, "advanced": 0.2}
-        else:
+        elif has_beginner_keywords or word_count <= 60:
             diff = "beginner"
             probs = {"beginner": 0.7, "intermediate": 0.2, "advanced": 0.1}
+        else:
+            diff = "intermediate"
+            probs = {"beginner": 0.2, "intermediate": 0.6, "advanced": 0.2}
 
         inference_time = int((time.time() - start_time) * 1000)
         return {

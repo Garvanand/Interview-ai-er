@@ -28,18 +28,34 @@ def compute_cosine_similarity(vec_a: np.ndarray, vec_b: np.ndarray) -> float:
     return float(np.dot(vec_a, vec_b) / (norm_a * norm_b))
 
 
+import hashlib
+import os
+
 class TextEmbeddingExtractor:
     """Extracts dense sentence embeddings using sentence-transformers or deterministic fallback."""
 
-    def __init__(self, model_name: str = DEFAULT_MODEL_NAME, device: str = "cpu"):
+    def __init__(
+        self,
+        model_name: str = DEFAULT_MODEL_NAME,
+        device: str = "cpu",
+        enable_transformer: Optional[bool] = None,
+    ):
         self.model_name = model_name
         self.device = device
         self._model = None
         self._fallback_mode = False
+        if enable_transformer is not None:
+            self.enable_transformer = enable_transformer
+        else:
+            self.enable_transformer = os.environ.get("USE_TRANSFORMER_EMBEDDINGS", "1").lower() in ("1", "true")
 
     def _load_model(self):
         if self._model is not None or self._fallback_mode:
             return
+        if not self.enable_transformer:
+            self._fallback_mode = True
+            return
+
         try:
             from sentence_transformers import SentenceTransformer
             logger.info("Loading SentenceTransformer model: %s on %s", self.model_name, self.device)
@@ -63,14 +79,15 @@ class TextEmbeddingExtractor:
             embeddings = self._model.encode(text_list, normalize_embeddings=normalize, show_progress_bar=False)
             return embeddings[0] if is_single else np.array(embeddings)
 
-        # DETERMINISTIC FALLBACK: Normalized character/word hash vector (384 dimensions)
+        # DETERMINISTIC FALLBACK: Normalized character/word MD5 hash vector (384 dimensions)
         dim = 384
         vectors = []
         for t in text_list:
             v = np.zeros(dim, dtype=np.float32)
             words = t.lower().split()
             for w in words:
-                idx = hash(w) % dim
+                # Use md5 for stable hash across processes
+                idx = int(hashlib.md5(w.encode("utf-8")).hexdigest(), 16) % dim
                 v[idx] += 1.0
             norm = np.linalg.norm(v)
             if norm > 0 and normalize:

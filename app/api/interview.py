@@ -406,6 +406,17 @@ def end_session(session_id: str):
     return jsonify(success(final, "Session ended successfully")), 200
 
 
+@interview_bp.route("/session/<session_id>/questions/<question_id>/selection_rationale", methods=["GET"])
+@require_auth
+def get_question_selection_rationale(session_id: str, question_id: str):
+    """Return the evidence-based rationale answering: 'Why was this question selected?'."""
+    if not verify_session_ownership(session_id, g.user_id):
+        return unauthorized_response("You do not have access to this session.")
+
+    rationale_data = _orchestrator.get_question_selection_rationale(session_id, question_id)
+    return jsonify(success(rationale_data, "Question selection rationale retrieved")), 200
+
+
 @interview_bp.route("/user/<user_id>/sessions", methods=["GET"])
 @require_auth
 def get_user_sessions(user_id: str):

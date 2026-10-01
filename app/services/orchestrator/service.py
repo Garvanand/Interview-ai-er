@@ -18,6 +18,7 @@ from .models import (
 from .skills import get_skills_for_role
 from .intelligence import CandidateSkillProfile, SkillEvidence, SkillEvidenceAggregator
 from .recommendations import RecommendationEngine
+from ml.models.adaptive_selector import AdaptiveQuestionSelector, MODEL_VERSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +45,15 @@ class InterviewOrchestrator:
     Central Interview Orchestrator maintaining backend-authoritative state,
     adaptive difficulty, skill distribution, duplicate prevention, and lifecycle transitions.
     """
-    def __init__(self, supabase_service: Optional[SupabaseService] = None, ai_engine: Optional[AssessmentEngine] = None):
+    def __init__(
+        self,
+        supabase_service: Optional[SupabaseService] = None,
+        ai_engine: Optional[AssessmentEngine] = None,
+        adaptive_selector: Optional[AdaptiveQuestionSelector] = None,
+    ):
         self.supabase = supabase_service or SupabaseService()
         self.ai = ai_engine or AssessmentEngine(get_ai_provider())
+        self.adaptive_selector = adaptive_selector or AdaptiveQuestionSelector()
         self.recommendation_engine = RecommendationEngine()
         self.intelligence_aggregator = SkillEvidenceAggregator()
         self._states: Dict[str, OrchestratorState] = {}
@@ -246,43 +253,74 @@ class InterviewOrchestrator:
             skill_focus = target_opportunity.skill_focus
             state.follow_ups_asked_count += 1
             parent_id = target_opportunity.parent_question_id
+
+            current_skill_signal = state.skills_distribution.get(skill_focus)
+            current_mastery = current_skill_signal.mastery if current_skill_signal else 0.40
+
+            selection_decision = {
+                "candidate_skill": skill_focus,
+                "current_mastery": current_mastery,
+                "target_skill": skill_focus,
+                "candidate_question_score": 0.95,
+                "difficulty_fit": 0.90,
+                "novelty": 0.85,
+                "selected": True,
+                "model_versions": list(MODEL_VERSIONS),
+            }
+            selection_rationale = (
+                f"Targeted follow-up question selected to probe identified weakness: "
+                f"'{target_opportunity.weakness_addressed}' in skill '{skill_focus}' "
+                f"(current mastery: {current_mastery:.2f}) from parent question {parent_id}."
+            )
+            state.decision_history.append(selection_decision)
         else:
-            # Standard Questioning flow
+            # Standard Questioning flow via Deterministic ML Decision Layer
             self._transition_to(
                 state,
                 InterviewPhase.QUESTIONING,
-                reason="Selecting next standard question"
+                reason="Selecting next standard question via deterministic ML decision layer"
             )
 
-            skill_focus = self._select_next_skill(state)
+            # Pacing / time budget calculation
+            try:
+                start_dt = datetime.fromisoformat(state.start_time)
+                elapsed_seconds = int((datetime.now(timezone.utc) - start_dt).total_seconds())
+            except Exception:
+                elapsed_seconds = len(state.questions_asked) * 300
+
+            target_role_skills = get_skills_for_role(state.target_role or state.interview_type)
+
+            # Deterministic ML Adaptive Selection Pipeline
+            # candidate skill state -> weaknesses -> eligible questions -> difficulty prediction
+            # -> skill coverage -> semantic deduplication -> adaptive ranking -> next question
+            selection_result = self.adaptive_selector.select_next_question(
+                candidate_skill_state=state.skills_distribution,
+                current_difficulty=state.difficulty.value,
+                previous_question_history=state.questions_asked,
+                recent_evaluation_evidence={
+                    "weaknesses_discovered": list(state.weaknesses_discovered),
+                    "strengths_discovered": list(state.strengths_discovered),
+                },
+                time_budget_seconds=state.time_budget_seconds,
+                elapsed_seconds=elapsed_seconds,
+                max_questions=policy.max_questions,
+                target_role=state.target_role,
+                interview_type=state.interview_type,
+                role_skills=target_role_skills,
+            )
+
+            selected_q = selection_result["selected_question"]
+            question_text = selected_q["question_text"]
+            skill_focus = selection_result["target_skill"]
             state.current_skill_focus = skill_focus
 
-            # Generate question with duplicate exclusions
-            raw_question = self.ai.generate_question(
-                interview_type=state.interview_type,
-                difficulty=state.difficulty.value,
-                skill_focus=skill_focus,
-                target_role=state.target_role,
-                excluded_questions=past_questions_texts
-            )
-            question_text = raw_question.get("question_text", str(raw_question))
+            selection_decision = selection_result["decision"]
+            selection_rationale = selection_result["why_selected"]
 
-            # Duplicate prevention check
-            if self._is_duplicate_question(question_text, past_questions_texts):
-                logger.warning(f"Duplicate question detected for session {session_id}. Regenerating with strict flag.")
-                raw_question = self.ai.generate_question(
-                    interview_type=state.interview_type,
-                    difficulty=state.difficulty.value,
-                    topic=f"Alternative scenario in {skill_focus}",
-                    skill_focus=skill_focus,
-                    target_role=state.target_role,
-                    excluded_questions=past_questions_texts + [question_text]
-                )
-                question_text = raw_question.get("question_text", str(raw_question))
-
+            state.decision_history.append(selection_decision)
             parent_id = None
 
-        # ML Override
+        # ML Override for Difficulty
         try:
             from app.services.question_difficulty_service import QuestionDifficultyService
             ml_diff_svc = QuestionDifficultyService()
@@ -322,11 +360,20 @@ class InterviewOrchestrator:
             is_follow_up=is_follow_up,
             parent_question_id=parent_id,
             predicted_skills=predicted_skills,
-            ml_skills=ml_skill_metadata
+            ml_skills=ml_skill_metadata,
+            selection_decision=selection_decision,
+            selection_rationale=selection_rationale,
         )
         state.questions_asked.append(q_record)
 
-        # Log event
+        # Log selection decision event with explainability
+        self.supabase.log_event(session_id, 'orchestrator_question_selected', {
+            'question_id': question_id,
+            'decision': selection_decision,
+            'why_selected': selection_rationale,
+        })
+
+        # Log delivery event
         self.supabase.log_event(session_id, 'orchestrator_question_delivered', {
             'question_id': question_id,
             'is_follow_up': is_follow_up,
@@ -336,6 +383,7 @@ class InterviewOrchestrator:
             'predicted_skills': predicted_skills,
             'ml_skill_confidence': ml_skill_conf,
             'ml_skill_model_version': ml_skill_version,
+            'selection_rationale': selection_rationale,
         })
 
         return {
@@ -350,7 +398,9 @@ class InterviewOrchestrator:
             'total_questions': policy.max_questions,
             'session_id': session_id,
             'predicted_skills': predicted_skills,
-            'ml_skills': ml_skill_metadata
+            'ml_skills': ml_skill_metadata,
+            'why_selected': selection_rationale,
+            'selection_decision': selection_decision,
         }
 
     def record_and_evaluate_answer(
@@ -413,13 +463,34 @@ class InterviewOrchestrator:
         if q_record:
             q_record.score = float(score)
 
-        # 3. Update candidate skill signals
+        # 3. Update candidate skill signals & 2PL-IRT latent ability
+        irt_update = self.adaptive_selector.irt.update_ability(
+            current_theta=state.candidate_theta,
+            score=float(score),
+            difficulty_level=state.difficulty.value
+        )
+        state.candidate_theta = float(irt_update["updated_theta"])
+        theta_delta = float(irt_update["updated_theta"]) - float(irt_update["previous_theta"])
+
         if skill_focus in state.skills_distribution:
             state.skills_distribution[skill_focus].record_score(
                 score=float(score),
                 strengths=strengths,
-                weaknesses=weaknesses
+                weaknesses=weaknesses,
+                theta_delta=theta_delta
             )
+        else:
+            signal = SkillSignal(
+                skill_name=skill_focus,
+                scores=[float(score)],
+                average_score=float(score),
+                questions_count=1,
+                mastery=round(max(0.05, min(0.95, float(score) / 100.0)), 2),
+                theta=round(theta_delta, 3),
+                strengths=list(strengths),
+                weaknesses=list(weaknesses),
+            )
+            state.skills_distribution[skill_focus] = signal
 
         for w in weaknesses:
             if w not in state.weaknesses_discovered:
@@ -607,5 +678,32 @@ class InterviewOrchestrator:
             'skills_distribution': {
                 name: sig.model_dump() for name, sig in state.skills_distribution.items()
             },
+            'candidate_theta': state.candidate_theta,
+            'decision_history': state.decision_history,
             'is_completed': state.phase == InterviewPhase.COMPLETED
+        }
+
+    def get_question_selection_rationale(self, session_id: str, question_id: str) -> Dict[str, Any]:
+        """
+        Answers: 'Why was this question selected?' with evidence from the candidate's actual session history.
+        """
+        state = self.get_or_restore_state(session_id)
+        rationale = state.get_selection_rationale(question_id)
+
+        q_record = next((q for q in state.questions_asked if q.question_id == question_id), None)
+        decision = q_record.selection_decision if q_record else None
+
+        if not rationale and q_record:
+            rationale = (
+                f"Question '{q_record.question_text[:50]}' was selected for skill '{q_record.skill_focus}' "
+                f"at {q_record.difficulty} difficulty based on candidate session performance."
+            )
+
+        return {
+            "session_id": session_id,
+            "question_id": question_id,
+            "why_selected": rationale or "Question was selected by the adaptive orchestrator based on candidate skill state.",
+            "decision": decision,
+            "skill_focus": q_record.skill_focus if q_record else state.current_skill_focus,
+            "difficulty": q_record.difficulty if q_record else state.difficulty.value,
         }

@@ -42,13 +42,25 @@ class SkillSignal(BaseModel):
     scores: List[float] = Field(default_factory=list)
     average_score: float = 0.0
     questions_count: int = 0
+    mastery: float = 0.50
+    theta: float = 0.0
     weaknesses: List[str] = Field(default_factory=list)
     strengths: List[str] = Field(default_factory=list)
 
-    def record_score(self, score: float, strengths: Optional[List[str]] = None, weaknesses: Optional[List[str]] = None):
+    def record_score(
+        self,
+        score: float,
+        strengths: Optional[List[str]] = None,
+        weaknesses: Optional[List[str]] = None,
+        theta_delta: Optional[float] = None,
+    ):
         self.scores.append(score)
         self.questions_count += 1
         self.average_score = round(sum(self.scores) / len(self.scores), 2)
+        # Update mastery estimate: normalized average score bounded in [0.05, 0.95]
+        self.mastery = round(max(0.05, min(0.95, self.average_score / 100.0)), 2)
+        if theta_delta is not None:
+            self.theta = round(self.theta + theta_delta, 3)
         if strengths:
             for s in strengths:
                 if s not in self.strengths:
@@ -69,6 +81,8 @@ class QuestionRecord(BaseModel):
     score: Optional[float] = None
     predicted_skills: Optional[List[Dict[str, Any]]] = None
     ml_skills: Optional[Dict[str, Any]] = None
+    selection_decision: Optional[Dict[str, Any]] = None
+    selection_rationale: Optional[str] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
@@ -97,11 +111,13 @@ class OrchestratorState(BaseModel):
     phase: InterviewPhase = InterviewPhase.INITIALIZING
     difficulty: DifficultyLevel = DifficultyLevel.INTERMEDIATE
     current_skill_focus: Optional[str] = None
+    candidate_theta: float = 0.0
     skills_distribution: Dict[str, SkillSignal] = Field(default_factory=dict)
     questions_asked: List[QuestionRecord] = Field(default_factory=list)
     weaknesses_discovered: List[str] = Field(default_factory=list)
     strengths_discovered: List[str] = Field(default_factory=list)
     follow_up_opportunities: List[FollowUpOpportunity] = Field(default_factory=list)
+    decision_history: List[Dict[str, Any]] = Field(default_factory=list)
     time_budget_seconds: int = 2700
     start_time: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     current_consecutive_strong: int = 0
@@ -110,3 +126,10 @@ class OrchestratorState(BaseModel):
     final_score: Optional[float] = None
     final_assessment: Optional[Dict[str, Any]] = None
     status_message: str = "Interview initialized"
+
+    def get_selection_rationale(self, question_id: str) -> Optional[str]:
+        """Return the evidence-based rationale answering why a question was selected."""
+        for q in self.questions_asked:
+            if q.question_id == question_id:
+                return q.selection_rationale
+        return None
