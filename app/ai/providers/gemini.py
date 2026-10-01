@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any, Dict, Type, TypeVar
+from typing import Any, Dict, Tuple, Type, TypeVar
 
 from google import genai
 from google.genai import types
@@ -33,7 +33,7 @@ class GeminiProvider(AIProvider):
         schema: Type[T],
         max_retries: int = 3,
         timeout_seconds: int = 30,
-    ) -> T:
+    ) -> Tuple[T, Dict[str, Any]]:
         for attempt in range(max_retries):
             try:
                 response = self.client.models.generate_content(
@@ -49,7 +49,17 @@ class GeminiProvider(AIProvider):
                 if not raw_json:
                     raise ValueError("Empty response received from Gemini")
 
-                return schema.model_validate_json(raw_json)
+                parsed = schema.model_validate_json(raw_json)
+                
+                # Extract telemetry
+                telemetry = {
+                    "input_tokens": response.usage_metadata.prompt_token_count if response.usage_metadata else None,
+                    "output_tokens": response.usage_metadata.candidates_token_count if response.usage_metadata else None,
+                    "retry_count": attempt,
+                    "schema_validation": True,
+                }
+                
+                return parsed, telemetry
 
             except Exception as e:
                 logger.warning("Attempt %d/%d failed: %s", attempt + 1, max_retries, e)

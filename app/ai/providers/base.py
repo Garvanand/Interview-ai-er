@@ -4,7 +4,7 @@ Base AI provider interface.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Type, TypeVar
+from typing import Any, Dict, Tuple, Type, TypeVar
 from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
@@ -18,7 +18,7 @@ class AIProvider(ABC):
         schema: Type[T],
         max_retries: int = 3,
         timeout_seconds: int = 30,
-    ) -> T:
+    ) -> Tuple[T, Dict[str, Any]]:
         """Generate structured output adhering to the provided Pydantic schema."""
         pass
 

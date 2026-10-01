@@ -52,6 +52,16 @@ export interface CodeEvaluation {
   improvements?: string[]
   issues?: string[]
   evidence?: string
+  ml_defect_detection?: {
+    defect_probability: number
+    risk_band: 'low' | 'medium' | 'high'
+    model_version: string
+    confidence: number
+    inference_time_ms?: number
+    method?: string
+    risk_indicators?: string[]
+    is_fine_tuned?: boolean
+  }
 }
 
 export interface SessionIntegrityReport {
@@ -323,7 +333,7 @@ class APIClient {
 
   // Practice & Additional Features
   async generatePracticeQuestion(interviewType: string, difficulty: string = 'intermediate', topic: string = 'coding'): Promise<{ question: string; interview_type: string; difficulty: string; topic: string }> {
-    return this.request('/practice/coding', {
+    const res: any = await this.request('/practice/coding', {
       method: 'POST',
       body: JSON.stringify({
         interview_type: interviewType,
@@ -331,10 +341,19 @@ class APIClient {
         topic,
       }),
     })
+    return res?.data ?? res
+  }
+
+  async evaluatePracticeAnswer(question: string, answer: string): Promise<any> {
+    const res: any = await this.request('/practice/evaluate', {
+      method: 'POST',
+      body: JSON.stringify({ question, answer }),
+    })
+    return res?.data ?? res
   }
 
   async getFollowUpQuestion(question: string, answer: string, interviewType: string): Promise<{ follow_up_question: string }> {
-    return this.request('/follow_up_question', {
+    const res: any = await this.request('/follow_up_question', {
       method: 'POST',
       body: JSON.stringify({
         question,
@@ -342,6 +361,7 @@ class APIClient {
         interview_type: interviewType,
       }),
     })
+    return res?.data ?? res
   }
 
   // Candidate Skill Intelligence & Recommendations

@@ -3,7 +3,7 @@ Pydantic schemas for structured AI generation and evaluation.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -59,3 +59,19 @@ class SessionSynthesis(BaseModel):
     summary: str = Field(description="Comprehensive summary of candidate performance")
     key_strengths: List[str] = Field(description="Top strengths across the session")
     red_flags: List[str] = Field(description="Any critical concerns")
+
+
+class AIRun(BaseModel):
+    """Schema for tracking AI observability and evaluations."""
+    task_type: str = Field(description="Type of AI task, e.g., generate_question, evaluate_answer")
+    model: str = Field(description="Provider name")
+    model_version: str = Field(description="Specific model version/identifier")
+    latency: float = Field(description="Total latency in seconds")
+    input_tokens: Optional[int] = Field(default=None, description="Input token count")
+    output_tokens: Optional[int] = Field(default=None, description="Output token count")
+    schema_validation: bool = Field(description="Whether the schema validation succeeded")
+    retry_count: int = Field(description="Number of retries attempted")
+    failure_state: Optional[str] = Field(default=None, description="Error message if the run failed")
+    confidence: Optional[float] = Field(default=None, description="Confidence score from the output if available")
+    evaluation_metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional context and metrics")
+    timestamp: str = Field(description="ISO timestamp of the run")

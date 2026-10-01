@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from app.services.supabase_service import SupabaseService
 from app.services.ai.engine import AssessmentEngine
-from app.services.ai.providers.gemini import GeminiProvider
+from app.services.ai.providers import GeminiProvider, GroqProvider, get_ai_provider
 from .models import (
     InterviewPhase,
     DifficultyLevel,
@@ -46,7 +46,7 @@ class InterviewOrchestrator:
     """
     def __init__(self, supabase_service: Optional[SupabaseService] = None, ai_engine: Optional[AssessmentEngine] = None):
         self.supabase = supabase_service or SupabaseService()
-        self.ai = ai_engine or AssessmentEngine(GeminiProvider())
+        self.ai = ai_engine or AssessmentEngine(get_ai_provider())
         self.recommendation_engine = RecommendationEngine()
         self.intelligence_aggregator = SkillEvidenceAggregator()
         self._states: Dict[str, OrchestratorState] = {}
@@ -282,18 +282,47 @@ class InterviewOrchestrator:
 
             parent_id = None
 
+        # ML Override
+        try:
+            from app.services.question_difficulty_service import QuestionDifficultyService
+            ml_diff_svc = QuestionDifficultyService()
+            if ml_diff_svc.is_enabled():
+                diff_pred = ml_diff_svc.assess_difficulty(question_text)
+                final_difficulty = diff_pred.get("predicted_difficulty", state.difficulty.value)
+            else:
+                final_difficulty = state.difficulty.value
+        except Exception as e:
+            logger.error(f"Failed to override difficulty: {e}")
+            final_difficulty = state.difficulty.value
+
         # Store question in database
         question_id = self.supabase.store_question(session_id, question_text, state.interview_type)
         if not question_id:
             raise RuntimeError("Database storage failed for generated question")
 
+        # Derive and persist ML skill predictions (separate from original question metadata)
+        ml_skill_metadata = None
+        try:
+            from app.services.question_skill_service import QuestionSkillService
+            skill_svc = QuestionSkillService(self.supabase)
+            if skill_svc.is_enabled():
+                ml_skill_metadata = skill_svc.predict_and_persist(question_id, question_text)
+        except Exception as e:
+            logger.error(f"Failed to derive and persist ML skill metadata: {e}")
+
+        predicted_skills = ml_skill_metadata.get("predicted_skills", []) if ml_skill_metadata else []
+        ml_skill_conf = ml_skill_metadata.get("confidence", 0.0) if ml_skill_metadata else 0.0
+        ml_skill_version = ml_skill_metadata.get("model_version", "") if ml_skill_metadata else ""
+
         q_record = QuestionRecord(
             question_id=question_id,
             question_text=question_text,
-            difficulty=state.difficulty.value,
+            difficulty=final_difficulty,
             skill_focus=skill_focus,
             is_follow_up=is_follow_up,
-            parent_question_id=parent_id
+            parent_question_id=parent_id,
+            predicted_skills=predicted_skills,
+            ml_skills=ml_skill_metadata
         )
         state.questions_asked.append(q_record)
 
@@ -303,7 +332,10 @@ class InterviewOrchestrator:
             'is_follow_up': is_follow_up,
             'skill_focus': skill_focus,
             'difficulty': state.difficulty.value,
-            'question_index': len(state.questions_asked)
+            'question_index': len(state.questions_asked),
+            'predicted_skills': predicted_skills,
+            'ml_skill_confidence': ml_skill_conf,
+            'ml_skill_model_version': ml_skill_version,
         })
 
         return {
@@ -316,7 +348,9 @@ class InterviewOrchestrator:
             'phase': state.phase.value,
             'question_index': len(state.questions_asked) - 1,
             'total_questions': policy.max_questions,
-            'session_id': session_id
+            'session_id': session_id,
+            'predicted_skills': predicted_skills,
+            'ml_skills': ml_skill_metadata
         }
 
     def record_and_evaluate_answer(

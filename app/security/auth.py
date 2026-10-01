@@ -102,6 +102,13 @@ def verify_session_ownership(session_id: str, user_id: str) -> bool:
     try:
         session = _supabase_service.get_session(session_id)
         if not session:
+            # In local fallback mode (e.g. unmigrated Supabase schema), if an authenticated user
+            # requests a session that was evicted or lost during dev server reload, auto-provision
+            # the local session for this authenticated user so they aren't locked out with a 403.
+            if _supabase_service.is_fallback_mode():
+                logger.info("Auto-restoring missing local session %s for user %s", session_id, user_id)
+                _supabase_service.create_local_session(session_id, user_id)
+                return True
             return False
         return session.get("user_id") == user_id
     except Exception as e:

@@ -376,3 +376,17 @@ BEGIN
         ALTER TABLE interview_sessions DROP COLUMN last_security_check;
     END IF;
 END $$;
+
+-- 15. QUESTION_SKILL_PREDICTIONS (ML-derived skill metadata)
+CREATE TABLE IF NOT EXISTS question_skill_predictions (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    question_id UUID REFERENCES interview_questions(id) ON DELETE CASCADE,
+    predicted_skills JSONB NOT NULL,
+    confidence DECIMAL(5,4) DEFAULT 0.0000,
+    model_version VARCHAR(100) NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE question_skill_predictions ENABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_question_skill_predictions_question_id ON question_skill_predictions(question_id);
+

@@ -1,0 +1,78 @@
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+*.env
+!.env.example
+.local_storage_cache.json*
+
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+venv/
+.venv/
+ENV/
+
+# Node & Next.js
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+out/
+frontend/out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# IDE & OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Application Logs & Cache
+*.log
+app.log
+
+# ML Datasets & Shards
+ml/data/
+*.parquet
+*.arrow
+
+# ML Model Weights & Checkpoints
+ml/models/weights/
+**/checkpoints/
+*.safetensors
+*.pt
+*.pth
+*.bin
+*.onnx

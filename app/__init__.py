@@ -33,6 +33,9 @@ def create_app() -> Flask:
     app.config["SUPABASE_URL"] = os.getenv("SUPABASE_URL")
     app.config["SUPABASE_KEY"] = os.getenv("SUPABASE_KEY")
     app.config["GEMINI_API_KEY"] = os.getenv("GEMINI_API_KEY")
+    app.config["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
+    app.config["GROQ_MODEL"] = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+    app.config["AI_PROVIDER"] = os.getenv("AI_PROVIDER", "groq")
     app.config["FRONTEND_URL"] = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
     _validate_env(app)
@@ -52,7 +55,7 @@ def create_app() -> Flask:
     app.register_blueprint(intelligence_bp, url_prefix="/api/intelligence")
     app.register_blueprint(analytics_bp, url_prefix="/api/analytics")
 
-    # ── Error handlers ────────────────────────────────────────────
+    # ── Error handlers ───────────────────────────────────────────
     @app.errorhandler(400)
     def bad_request(exc):
         return jsonify({"error": True, "message": "Bad request", "code": "BAD_REQUEST"}), 400
@@ -76,8 +79,10 @@ def create_app() -> Flask:
 
 def _validate_env(app: Flask) -> None:
     """Raise a clear error if required environment variables are missing."""
-    required = ["SUPABASE_URL", "SUPABASE_KEY", "GEMINI_API_KEY"]
+    required = ["SUPABASE_URL", "SUPABASE_KEY"]
     missing = [k for k in required if not app.config.get(k)]
+    if not (app.config.get("GROQ_API_KEY") or app.config.get("GEMINI_API_KEY")):
+        missing.append("GROQ_API_KEY or GEMINI_API_KEY")
     if missing:
         raise ValueError(
             f"Missing required environment variables: {', '.join(missing)}. "

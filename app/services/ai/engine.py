@@ -96,38 +96,155 @@ class AssessmentEngine:
         response = self._execute_with_telemetry(prompt, Question)
         return {**response["data"], "_metadata": response["metadata"]}
 
-    def evaluate_answer(self, question: str, answer: str, question_type: str = 'technical') -> Dict[str, Any]:
-        """Evaluate a text answer and provide detailed feedback."""
-        prompt = f"""
+    def evaluate_answer(self, question: str, answer: str, question_type: str = 'technical',
+                        evaluation_rubric: str = '', expected_concepts: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Evaluate a text answer using the hybrid ML + Gemini pipeline.
+
+        Steps:
+            1. Generate ML-derived concept coverage evidence (DeBERTa NLI + MiniLM)
+            2. Inject structured evidence into the Gemini evaluation prompt
+            3. Gemini reasons over the evidence to produce the final evaluation
+        """
+        # Step 1: Generate ML evidence
+        ml_evidence = None
+        ml_evidence_block = ""
+        try:
+            from ml.pipelines.hybrid_assessment import HybridAssessmentPipeline
+            pipeline = HybridAssessmentPipeline()
+            ml_evidence = pipeline.generate_ml_evidence(
+                candidate_answer=answer,
+                question_text=question,
+                evaluation_rubric=evaluation_rubric or question,
+                expected_concepts=expected_concepts,
+            )
+            ml_evidence_block = pipeline.format_evidence_for_gemini(ml_evidence)
+            logger.info(
+                "ML evidence generated: coverage=%.1f%%, concepts=%d, time=%.1fms",
+                ml_evidence.get("ml_concept_coverage", {}).get("overall_coverage_pct", 0),
+                ml_evidence.get("concepts_evaluated", 0),
+                ml_evidence.get("total_pipeline_time_ms", 0),
+            )
+        except Exception as e:
+            logger.warning("Hybrid ML evidence generation failed (non-fatal): %s", e)
+
+        # Step 2: Build the evaluation prompt with ML evidence
+        base_prompt = f"""
         Evaluate this interview answer for a {question_type} question.
-        
+
         Question: {question}
         Answer: {answer}
-        
+
         You are an expert technical interviewer. Score the answer out of 100 on multiple axes.
         Provide constructive feedback, strengths, and weaknesses. Be honest and critical.
         """
-        
+
+        if ml_evidence_block:
+            prompt = f"{base_prompt}\n{ml_evidence_block}"
+        else:
+            prompt = base_prompt
+
+        # Step 3: Gemini evaluates with ML evidence context
         response = self._execute_with_telemetry(prompt, AnswerEvaluation)
-        return {**response["data"], "_metadata": response["metadata"]}
+        result = {**response["data"], "_metadata": response["metadata"]}
+
+        # Attach the raw ML evidence to the response for transparency
+        if ml_evidence:
+            result["ml_concept_coverage"] = ml_evidence.get("ml_concept_coverage")
+            result["ml_pipeline_version"] = ml_evidence.get("pipeline_version")
+            result["ml_signal_type"] = ml_evidence.get("ml_concept_coverage", {}).get("signal_type")
+
+        return result
 
     def evaluate_code(self, code: str, language: str, question: str) -> Dict[str, Any]:
-        """Evaluate a code submission."""
-        prompt = f"""
+        """
+        Evaluate a code submission using the hybrid ML + Gemini pipeline.
+
+        Steps:
+            1. Run CodeBERT defect detection for ML-derived code-risk signal
+            2. Inject structured evidence into the Gemini evaluation prompt
+            3. Gemini reasons over the evidence to produce the final evaluation
+        """
+        # Step 1: Generate ML defect detection evidence
+        ml_defect = None
+        ml_evidence_block = ""
+        try:
+            from ml.models.defect_detector import CodeDefectDetector
+            detector = CodeDefectDetector()
+            ml_defect = detector.analyze_code(code, language=language)
+            logger.info(
+                "ML defect detection: prob=%.3f, risk=%s, method=%s, time=%.1fms",
+                ml_defect.get("defect_probability", 0),
+                ml_defect.get("risk_band", "unknown"),
+                ml_defect.get("method", "unknown"),
+                ml_defect.get("inference_time_ms", 0),
+            )
+
+            # Format evidence block for Gemini
+            risk_indicators = ml_defect.get("risk_indicators", [])
+            indicators_text = "\n".join(f"  - {r}" for r in risk_indicators) if risk_indicators else "  (none detected)"
+
+            ml_evidence_block = f"""
+═══════════════════════════════════════════════════════════════
+ML-DERIVED CODE-RISK SIGNAL (Structured Evidence)
+═══════════════════════════════════════════════════════════════
+Model: {ml_defect.get('model_version', 'unknown')}
+Method: {ml_defect.get('method', 'unknown')}
+Defect Probability: {ml_defect.get('defect_probability', 0):.3f}
+Risk Band: {ml_defect.get('risk_band', 'unknown').upper()}
+Confidence: {ml_defect.get('confidence', 0):.3f}
+
+Static Risk Indicators:
+{indicators_text}
+
+IMPORTANT INSTRUCTIONS:
+  1. This is an ML-derived code-risk signal, NOT proof of incorrectness.
+  2. Use this signal to guide your analysis — inspect areas of higher risk more carefully.
+  3. Executable tests remain authoritative for runtime correctness.
+  4. If the risk signal is high, explain why the code might be vulnerable.
+  5. If the risk signal is low but you find issues, note the ML signal was insufficient.
+═══════════════════════════════════════════════════════════════
+"""
+        except Exception as e:
+            logger.warning("ML defect detection failed (non-fatal): %s", e)
+
+        # Step 2: Build the evaluation prompt with ML evidence
+        base_prompt = f"""
         Evaluate this {language} code submission for the following question:
-        
+
         Question: {question}
         Code:
         ```{language}
         {code}
         ```
-        
-        Analyze correctness, time/space complexity, and code quality. 
+
+        Analyze correctness, time/space complexity, and code quality.
         Identify strengths and issues. Provide actionable recommendations.
         """
-        
+
+        if ml_evidence_block:
+            prompt = f"{base_prompt}\n{ml_evidence_block}"
+        else:
+            prompt = base_prompt
+
+        # Step 3: Gemini evaluates with ML evidence context
         response = self._execute_with_telemetry(prompt, CodeEvaluation)
-        return {**response["data"], "_metadata": response["metadata"]}
+        result = {**response["data"], "_metadata": response["metadata"]}
+
+        # Attach the raw ML evidence to the response for transparency & persistence
+        if ml_defect:
+            result["ml_defect_detection"] = {
+                "defect_probability": ml_defect.get("defect_probability"),
+                "risk_band": ml_defect.get("risk_band"),
+                "model_version": ml_defect.get("model_version"),
+                "confidence": ml_defect.get("confidence"),
+                "inference_time_ms": ml_defect.get("inference_time_ms"),
+                "method": ml_defect.get("method"),
+                "risk_indicators": ml_defect.get("risk_indicators", []),
+                "is_fine_tuned": ml_defect.get("is_fine_tuned", False),
+            }
+
+        return result
 
     def generate_follow_up_question(
         self, 

@@ -8,6 +8,7 @@ No business logic lives here.
 from __future__ import annotations
 
 import logging
+import uuid
 
 from flask import Blueprint, g, jsonify, request
 from pydantic import ValidationError
@@ -29,7 +30,7 @@ from app.schemas import (
     error,
 )
 from app.services.supabase_service import SupabaseService
-from app.ai import AssessmentEngine, GeminiProvider
+from app.ai import AssessmentEngine, GeminiProvider, GroqProvider, get_ai_provider
 from app.services.orchestrator import InterviewOrchestrator
 from app.infrastructure import CodeSandbox
 
@@ -39,7 +40,7 @@ interview_bp = Blueprint("interview", __name__)
 
 # Service singletons — initialized once per worker process
 _supabase = SupabaseService()
-_ai_engine = AssessmentEngine(GeminiProvider())
+_ai_engine = AssessmentEngine(get_ai_provider())
 _security = SecurityService()
 _orchestrator = InterviewOrchestrator(_supabase, _ai_engine)
 _sandbox = CodeSandbox(timeout_seconds=5)
@@ -236,8 +237,16 @@ def get_session_orchestrator_state(session_id: str):
     """Return backend-authoritative orchestrator state for the session."""
     if not verify_session_ownership(session_id, g.user_id):
         return unauthorized_response("You do not have access to this session.")
-    state = _orchestrator.get_session_state(session_id)
-    return jsonify(success(state, "Session state retrieved")), 200
+    try:
+        state = _orchestrator.get_session_state(session_id)
+        return jsonify(success(state, "Session state retrieved")), 200
+    except Exception as e:
+        logger.warning("Session state retrieval failed for %s (%s). Attempting initialization recovery.", session_id, e)
+        session = _supabase.get_session(session_id)
+        target_role = (session or {}).get("interview_type", "Software Engineer")
+        _orchestrator.initialize_session(session_id, g.user_id, target_role, target_role)
+        state = _orchestrator.get_session_state(session_id)
+        return jsonify(success(state, "Session state retrieved")), 200
 
 
 @interview_bp.route("/end_session/<session_id>", methods=["POST"])
@@ -284,9 +293,23 @@ def get_follow_up_question():
         return err
     follow_up_data = _ai_engine.generate_follow_up_question(req.question, req.answer, {})
     follow_up = follow_up_data.get("question_text", str(follow_up_data))
+    
+    question_id = str(uuid.uuid4())
+    ml_skills = None
+    try:
+        from app.services.question_skill_service import QuestionSkillService
+        skill_svc = QuestionSkillService(_supabase)
+        if skill_svc.is_enabled():
+            ml_skills = skill_svc.predict_and_persist(question_id, follow_up)
+    except Exception as e:
+        logger.error(f"Failed to derive ML skills for follow-up question: {e}")
+
     return jsonify(success({
+        "question_id": question_id,
         "follow_up_question": follow_up,
         "context": {"original_question": req.question, "interview_type": req.interview_type},
+        "ml_skills": ml_skills,
+        "predicted_skills": ml_skills.get("predicted_skills", []) if ml_skills else []
     }, "Follow-up question generated")), 200
 
 
@@ -298,15 +321,58 @@ def practice_coding():
     interview_type = data.get("interview_type", "").strip()
     if not interview_type:
         return jsonify(error("interview_type is required", "MISSING_INTERVIEW_TYPE")), 400
-    difficulty = data.get("difficulty", "intermediate")
+    requested_difficulty = data.get("difficulty", "intermediate")
     topic = data.get("topic", "coding")
-    question_data = _ai_engine.generate_question("coding", difficulty, topic=topic)
+    
+    question_data = _ai_engine.generate_question("coding", requested_difficulty, topic=topic)
+    question_text = question_data.get("question_text", str(question_data))
+    question_id = str(uuid.uuid4())
+    
+    # ML Difficulty Assessment
+    from app.services.question_difficulty_service import QuestionDifficultyService
+    ml_diff_service = QuestionDifficultyService()
+    if ml_diff_service.is_enabled():
+        ml_result = ml_diff_service.assess_difficulty(question_text)
+        final_difficulty = ml_result.get("predicted_difficulty", requested_difficulty)
+        ml_metadata = ml_result
+    else:
+        final_difficulty = requested_difficulty
+        ml_metadata = None
+
+    # ML Skill Classification & Persistence (Kept separate from source question metadata)
+    ml_skills = None
+    try:
+        from app.services.question_skill_service import QuestionSkillService
+        skill_svc = QuestionSkillService(_supabase)
+        if skill_svc.is_enabled():
+            ml_skills = skill_svc.predict_and_persist(question_id, question_text)
+    except Exception as e:
+        logger.error(f"Failed to derive and persist ML skills for coding practice: {e}")
+        
     return jsonify(success({
-        "question": question_data.get("question_text", str(question_data)),
+        "question_id": question_id,
+        "question": question_text,
         "interview_type": interview_type,
-        "difficulty": difficulty,
+        "difficulty": final_difficulty,
         "topic": topic,
+        "ml_metadata": ml_metadata,
+        "ml_skills": ml_skills,
+        "predicted_skills": ml_skills.get("predicted_skills", []) if ml_skills else []
     }, "Practice question generated")), 200
+
+
+@interview_bp.route("/practice/evaluate", methods=["POST"])
+@require_auth
+def practice_evaluate():
+    """Evaluate a candidate response to a practice drill using the AI engine."""
+    data = request.get_json(silent=True) or {}
+    question = data.get("question", "").strip()
+    answer = data.get("answer", "").strip()
+    if not question or not answer:
+        return jsonify(error("question and answer are required", "MISSING_FIELDS")), 400
+
+    evaluation = _ai_engine.evaluate_answer(question, answer, {})
+    return jsonify(success(evaluation, "Practice answer evaluated")), 200
 
 
 # ─────────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { getBrowserSupabaseClient } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
-import { Brain, AlertCircle, Loader2, CheckCircle2 } from "lucide-react"
+import { AlertCircle, Loader2, CheckCircle2, UserPlus, ArrowRight } from "lucide-react"
 
 const MIN_PASSWORD_LEN = 8
 
@@ -58,100 +58,134 @@ export default function SignUpPage() {
     if (error) {
       setError(error.message)
     } else {
-      setMessage("Account created. Check your email to confirm before signing in.")
+      setMessage("Account created. Please check your email inbox to confirm your account before logging in.")
     }
   }
 
   if (notConfigured) {
     return (
       <div className="flex min-h-[80vh] items-center justify-center px-4">
-        <div className="max-w-sm w-full rounded-lg border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+        <div className="max-w-md w-full rounded border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-6 text-xs font-mono text-amber-800 dark:text-amber-300">
           <AlertCircle className="h-5 w-5 mb-2" />
-          <p className="font-medium">Supabase not configured</p>
-          <p className="mt-1 text-amber-700">Authentication cannot be enabled without the required environment variables.</p>
+          <p className="font-semibold text-sm mb-1">Supabase Client Unconfigured</p>
+          <p className="leading-relaxed">
+            Please configure <code className="bg-amber-100 dark:bg-amber-900/50 px-1 py-0.5 rounded">NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
+            <code className="bg-amber-100 dark:bg-amber-900/50 px-1 py-0.5 rounded">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> in your environment.
+          </p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="flex min-h-[80vh] items-center justify-center px-4 py-12">
+      <div className="w-full max-w-sm rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] p-8 shadow-sm">
         {/* Header */}
-        <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600">
-            <Brain className="h-7 w-7 text-white" />
+        <div className="mb-6">
+          <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono text-slate-600 dark:text-slate-400 mb-3">
+            <UserPlus className="h-3 w-3" />
+            <span>CANDIDATE ONBOARDING</span>
           </div>
-          <h1 className="text-2xl font-semibold text-gray-900">Create your account</h1>
-          <p className="mt-1.5 text-sm text-gray-500">
-            Already have an account?{" "}
-            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500 underline underline-offset-2">
-              Sign in
-            </Link>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            Create Account
+          </h1>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Begin calibrated mock interviews and skill profile tracking
           </p>
         </div>
 
+        {/* Message Callout or Success Card */}
         {message ? (
-          <div className="flex items-start gap-2 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-            <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span>{message}</span>
+          <div className="space-y-4">
+            <div className="rounded border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-xs text-emerald-800 dark:text-emerald-300 flex items-start space-x-2.5">
+              <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <div className="space-y-1">
+                <p className="font-semibold text-emerald-900 dark:text-emerald-200">Account Created Successfully</p>
+                <p className="leading-relaxed">{message}</p>
+              </div>
+            </div>
+            <Link href="/login" className="block">
+              <Button className="w-full h-9 bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 text-xs font-medium rounded transition-colors">
+                <span>Proceed to Sign In</span>
+                <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+              </Button>
+            </Link>
           </div>
         ) : (
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email address
-              </label>
-              <Input
-                id="email"
-                type="email"
-                required
-                autoComplete="email"
-                autoFocus
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                required
-                autoComplete="new-password"
-                minLength={MIN_PASSWORD_LEN}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
-                disabled={loading}
-              />
-              <p className="mt-1 text-xs text-gray-400">Minimum {MIN_PASSWORD_LEN} characters.</p>
-            </div>
-
+          <>
+            {/* Error Callout */}
             {error && (
-              <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
-                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <div className="mb-4 rounded border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 p-3 text-xs text-rose-700 dark:text-rose-300 flex items-start space-x-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating account…
-                </>
-              ) : (
-                "Create account"
-              )}
-            </Button>
-          </form>
+            {/* Form */}
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-xs font-mono text-slate-600 dark:text-slate-400 mb-1">
+                  EMAIL ADDRESS
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  autoFocus
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="candidate@example.com"
+                  disabled={loading}
+                  className="h-9 text-xs rounded border-slate-200 dark:border-slate-800 font-mono"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-xs font-mono text-slate-600 dark:text-slate-400 mb-1">
+                  PASSWORD (MIN 8 CHARACTERS)
+                </label>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={loading}
+                  className="h-9 text-xs rounded border-slate-200 dark:border-slate-800 font-mono"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-9 bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 text-xs font-medium rounded transition-colors"
+              >
+                {loading ? (
+                  <span className="flex items-center space-x-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Registering Profile...</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center space-x-1.5">
+                    <span>Create Candidate Profile</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                )}
+              </Button>
+            </form>
+          </>
         )}
+
+        {/* Footer */}
+        <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 text-center text-xs text-slate-500">
+          <span>Already registered? </span>
+          <Link href="/login" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+            Sign In
+          </Link>
+        </div>
       </div>
     </div>
   )

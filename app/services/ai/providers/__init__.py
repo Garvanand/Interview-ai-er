@@ -1,7 +1,8 @@
-from .base import AIProvider
-from .gemini import GeminiProvider
+from app.ai.providers import AIProvider, GeminiProvider, GroqProvider, get_ai_provider
 
 __all__ = [
     "AIProvider",
     "GeminiProvider",
+    "GroqProvider",
+    "get_ai_provider",
 ]

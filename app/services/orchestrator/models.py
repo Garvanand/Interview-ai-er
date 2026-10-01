@@ -67,7 +67,10 @@ class QuestionRecord(BaseModel):
     is_follow_up: bool = False
     parent_question_id: Optional[str] = None
     score: Optional[float] = None
+    predicted_skills: Optional[List[Dict[str, Any]]] = None
+    ml_skills: Optional[Dict[str, Any]] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
 
 class FollowUpOpportunity(BaseModel):
     parent_question_id: str

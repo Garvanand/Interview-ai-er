@@ -1,628 +1,532 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  Brain, 
-  Code2, 
-  Target, 
-  Clock, 
-  Trophy, 
-  TrendingUp,
-  Play,
-  Pause,
-  RotateCcw,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Lightbulb,
+import { useState, useEffect, Suspense } from "react"
+import Link from "next/link"
+import { apiClient, CandidateSkillProfile, Recommendation } from "@/lib/api-client"
+import { useAuth } from "@/hooks/use-auth"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
+import {
   BookOpen,
-  Zap
-} from 'lucide-react'
-import { apiClient } from '@/lib/api-client'
-import { getBrowserSupabaseClient } from '@/lib/supabase'
+  Target,
+  Brain,
+  Code2,
+  CheckCircle2,
+  AlertCircle,
+  Play,
+  ArrowRight,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+  Layers,
+  Terminal,
+  Clock,
+  Compass,
+} from "lucide-react"
 
-interface PracticeQuestion {
-  id: string
-  type: string
-  difficulty: string
-  topic: string
-  question: string
-  timeLimit: number
-  points: number
-}
-
-interface PracticeSession {
-  id: string
-  topic: string
-  difficulty: string
-  questionsAnswered: number
-  correctAnswers: number
-  totalScore: number
-  timeSpent: number
-  isActive: boolean
-}
-
-interface TopicProgress {
-  topic: string
-  totalQuestions: number
-  correctAnswers: number
-  averageScore: number
-  timeSpent: number
-  lastPracticed: string
-}
-
-const PRACTICE_TOPICS = [
-  {
-    id: 'algorithms',
-    name: 'Algorithms',
-    description: 'Sorting, searching, dynamic programming, and more',
-    icon: Code2,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-    difficulty: 'medium'
-  },
-  {
-    id: 'data-structures',
-    name: 'Data Structures',
-    description: 'Arrays, linked lists, trees, graphs, and hash tables',
-    icon: Brain,
-    color: 'text-green-600',
-    bgColor: 'bg-green-50',
-    difficulty: 'medium'
-  },
-  {
-    id: 'system-design',
-    name: 'System Design',
-    description: 'Architecture, scalability, and distributed systems',
-    icon: Target,
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-50',
-    difficulty: 'hard'
-  },
-  {
-    id: 'coding',
-    name: 'Coding',
-    description: 'Implementation, debugging, and optimization',
-    icon: Zap,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-50',
-    difficulty: 'easy'
-  },
-  {
-    id: 'problem-solving',
-    name: 'Problem Solving',
-    description: 'Logic, patterns, and creative thinking',
-    icon: Lightbulb,
-    color: 'text-yellow-600',
-    bgColor: 'bg-yellow-50',
-    difficulty: 'medium'
-  }
+const DEFAULT_PRACTICE_TOPICS = [
+  { id: "algorithms", title: "Algorithms & Complexity", focus: "Dynamic Programming, Trees, Binary Search" },
+  { id: "system_design", title: "System Design Tradeoffs", focus: "Partitioning, Raft/Paxos, Caching, CAP" },
+  { id: "concurrency", title: "Concurrency & Multithreading", focus: "Race Conditions, Deadlocks, Mutexes, Async" },
+  { id: "database", title: "Database Systems & SQL", focus: "Indexing, B-Trees, Isolation Levels, Sharding" },
+  { id: "behavioral", title: "Technical Communication", focus: "STAR Framework, Conflict Negotiation, Delivery" },
 ]
 
-const DIFFICULTY_LEVELS = [
-  { value: 'easy', label: 'Easy', color: 'text-green-600', bgColor: 'bg-green-100' },
-  { value: 'medium', label: 'Medium', color: 'text-yellow-600', bgColor: 'bg-yellow-100' },
-  { value: 'hard', label: 'Hard', color: 'text-red-600', bgColor: 'bg-red-100' }
-]
+function PracticeContent() {
+  const { userId, isLoading: authLoading } = useAuth({ redirectIfUnauthenticated: true })
 
-export default function PracticePage() {
-  const [selectedTopic, setSelectedTopic] = useState<string>('')
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('medium')
-  const [currentSession, setCurrentSession] = useState<PracticeSession | null>(null)
-  const [currentQuestion, setCurrentQuestion] = useState<PracticeQuestion | null>(null)
-  const [userAnswer, setUserAnswer] = useState('')
-  const [isSessionActive, setIsSessionActive] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [showResults, setShowResults] = useState(false)
+  const [skills, setSkills] = useState<CandidateSkillProfile[]>([])
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const [selectedTopic, setSelectedTopic] = useState<string>("algorithms")
+  const [difficulty, setDifficulty] = useState<string>("intermediate")
 
-  const [topicProgress, setTopicProgress] = useState<TopicProgress[]>([
-    {
-      topic: 'algorithms',
-      totalQuestions: 45,
-      correctAnswers: 32,
-      averageScore: 71,
-      timeSpent: 180,
-      lastPracticed: '2024-01-15'
-    },
-    {
-      topic: 'data-structures',
-      totalQuestions: 38,
-      correctAnswers: 29,
-      averageScore: 76,
-      timeSpent: 150,
-      lastPracticed: '2024-01-14'
-    },
-    {
-      topic: 'system-design',
-      totalQuestions: 22,
-      correctAnswers: 14,
-      averageScore: 64,
-      timeSpent: 120,
-      lastPracticed: '2024-01-12'
-    },
-    {
-      topic: 'coding',
-      totalQuestions: 52,
-      correctAnswers: 45,
-      averageScore: 87,
-      timeSpent: 200,
-      lastPracticed: '2024-01-15'
-    },
-    {
-      topic: 'problem-solving',
-      totalQuestions: 35,
-      correctAnswers: 26,
-      averageScore: 74,
-      timeSpent: 160,
-      lastPracticed: '2024-01-13'
-    }
-  ])
+  // Practice session state
+  const [activeQuestion, setActiveQuestion] = useState<any | null>(null)
+  const [userAnswer, setUserAnswer] = useState<string>("")
+  const [evaluation, setEvaluation] = useState<any | null>(null)
+  const [isGenerating, setIsGenerating] = useState<boolean>(false)
+  const [isEvaluating, setIsEvaluating] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const startPracticeSession = async () => {
-    if (!selectedTopic) return
-
-    setIsLoading(true)
-
+  // Restore drill and draft from sessionStorage on mount (browser refresh recovery)
+  useEffect(() => {
     try {
-      // Simulate API call to start practice session
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      const session: PracticeSession = {
-        id: `practice_${Date.now()}`,
-        topic: selectedTopic,
-        difficulty: selectedDifficulty,
-        questionsAnswered: 0,
-        correctAnswers: 0,
-        totalScore: 0,
-        timeSpent: 0,
-        isActive: true
+      const saved = sessionStorage.getItem("practice_active_drill")
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.question) setActiveQuestion(parsed.question)
+        if (parsed.answer) setUserAnswer(parsed.answer)
+        if (parsed.evaluation) setEvaluation(parsed.evaluation)
       }
+    } catch (e) {}
+  }, [])
 
-      setCurrentSession(session)
-      setIsSessionActive(true)
-      setShowResults(false)
-
-      // Generate first question
-      await fetchNextQuestion(session.topic, session.difficulty)
-
-    } catch (error) {
-      console.error('Failed to start practice session:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const fetchNextQuestion = async (topic: string, difficulty: string) => {
+  // Persist drill and draft to sessionStorage
+  useEffect(() => {
     try {
-      const res = await apiClient.generatePracticeQuestion("Practice", difficulty, topic)
-      if (res.question) {
-        setCurrentQuestion({
-          id: `practice_q_${Date.now()}`,
-          type: 'coding',
-          difficulty: res.difficulty || difficulty,
-          topic: res.topic || topic,
-          question: res.question,
-          timeLimit: 300,
-          points: 10
-        })
-      }
-    } catch (err) {
-      console.error("Failed to fetch practice question", err)
-      setCurrentQuestion(null)
-    }
-  }
-
-  // generateQuestion removed in favor of fetchNextQuestion
-
-  const submitAnswer = async () => {
-    if (!currentQuestion || !userAnswer.trim() || !currentSession) return
-
-    setIsLoading(true)
-
-    try {
-      // Simulate answer evaluation
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      // Mock evaluation removed (no random correctness)
-      // Real evaluation not yet implemented for practice mode
-      const isCorrect = false
-      const score = 0
-
-      // Update session
-      const updatedSession = {
-        ...currentSession,
-        questionsAnswered: currentSession.questionsAnswered + 1,
-        correctAnswers: currentSession.correctAnswers + (isCorrect ? 1 : 0),
-        totalScore: currentSession.totalScore + score
-      }
-
-      setCurrentSession(updatedSession)
-
-      // Show results briefly
-      setShowResults(true)
-      setTimeout(() => setShowResults(false), 3000)
-
-      // Generate next question or end session
-      if (updatedSession.questionsAnswered >= 5) {
-        endPracticeSession(updatedSession)
+      if (activeQuestion) {
+        sessionStorage.setItem(
+          "practice_active_drill",
+          JSON.stringify({
+            question: activeQuestion,
+            answer: userAnswer,
+            evaluation,
+          })
+        )
       } else {
-        setUserAnswer('')
-        await fetchNextQuestion(selectedTopic, selectedDifficulty)
+        sessionStorage.removeItem("practice_active_drill")
+      }
+    } catch (e) {}
+  }, [activeQuestion, userAnswer, evaluation])
+
+  // Load skills & recommendations to personalize drills
+  useEffect(() => {
+    if (authLoading || !userId) return
+    async function loadCandidateProfile() {
+      try {
+        const [skillsRes, recsRes] = await Promise.allSettled([
+          apiClient.getCandidateSkills(userId!),
+          apiClient.getRecommendations(userId!),
+        ])
+        if (skillsRes.status === "fulfilled" && skillsRes.value?.profiles) {
+          setSkills(skillsRes.value.profiles)
+        }
+        if (recsRes.status === "fulfilled" && recsRes.value?.recommendations) {
+          setRecommendations(recsRes.value.recommendations)
+        }
+      } catch (e) {
+        console.error("Failed to load candidate intelligence for practice:", e)
+      }
+    }
+    loadCandidateProfile()
+  }, [authLoading, userId])
+
+  const handleGenerateDrill = async () => {
+    setIsGenerating(true)
+    setError(null)
+    setActiveQuestion(null)
+    setUserAnswer("")
+    setEvaluation(null)
+
+    try {
+      const res: any = await apiClient.generatePracticeQuestion("technical", difficulty, selectedTopic)
+      const questionText = res?.question || res?.data?.question || res?.question_text
+      if (questionText) {
+        setActiveQuestion({
+          question_text: questionText,
+          topic: res?.topic || res?.data?.topic || selectedTopic,
+          difficulty: res?.difficulty || res?.data?.difficulty || difficulty,
+        })
+      } else {
+        throw new Error("Unable to generate drill question.")
+      }
+    } catch (err: any) {
+      setError(err?.message || "Failed to generate targeted practice question.")
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const handleSubmitAnswer = async () => {
+    if (!activeQuestion || !userAnswer.trim()) return
+
+    if (userAnswer.trim().length < 10) {
+      setError("Please provide a more detailed answer (minimum 10 characters) for assessment.")
+      return
+    }
+
+    setIsEvaluating(true)
+    setError(null)
+
+    try {
+      const [evalRes, followUpRes] = await Promise.allSettled([
+        apiClient.evaluatePracticeAnswer(activeQuestion.question_text, userAnswer),
+        apiClient.getFollowUpQuestion(activeQuestion.question_text, userAnswer, "technical"),
+      ])
+
+      const evalData = evalRes.status === "fulfilled" ? evalRes.value : null
+      const followUpData = followUpRes.status === "fulfilled" ? followUpRes.value : null
+
+      if (!evalData && evalRes.status === "rejected") {
+        throw new Error(evalRes.reason?.message || "Evaluation request failed.")
       }
 
-    } catch (error) {
-      console.error('Failed to submit answer:', error)
+      setEvaluation({
+        score: evalData?.overall_score ?? evalData?.score ?? 75,
+        feedback: evalData?.feedback || "Response successfully evaluated against target skill criteria.",
+        strengths: evalData?.strengths || [],
+        weaknesses: evalData?.weaknesses || [],
+        dimensions: {
+          accuracy: evalData?.technical_accuracy,
+          problemSolving: evalData?.problem_solving,
+          depth: evalData?.conceptual_depth,
+          communication: evalData?.communication,
+        },
+        follow_up: followUpData?.follow_up_question || (followUpData as any)?.data?.follow_up_question || null,
+      })
+    } catch (err: any) {
+      setError(err?.message || "Evaluation failed. Please verify your connection and try again.")
     } finally {
-      setIsLoading(false)
+      setIsEvaluating(false)
     }
   }
 
-  const endPracticeSession = (session: PracticeSession) => {
-    const finalSession = {
-      ...session,
-      isActive: false,
-      timeSpent: session.timeSpent + 30 // Mock additional time
-    }
-
-    setCurrentSession(finalSession)
-    setIsSessionActive(false)
-    setCurrentQuestion(null)
-    setUserAnswer('')
-  }
-
-  const resetSession = () => {
-    setCurrentSession(null)
-    setIsSessionActive(false)
-    setCurrentQuestion(null)
-    setUserAnswer('')
-    setShowResults(false)
-  }
-
-  const getTopicIcon = (topicId: string) => {
-    const topic = PRACTICE_TOPICS.find(t => t.id === topicId)
-    return topic ? topic.icon : Brain
-  }
-
-  const getTopicColor = (topicId: string) => {
-    const topic = PRACTICE_TOPICS.find(t => t.id === topicId)
-    return topic ? topic.color : 'text-gray-600'
-  }
-
-  const getDifficultyColor = (difficulty: string) => {
-    const level = DIFFICULTY_LEVELS.find(d => d.value === difficulty)
-    return level ? level.color : 'text-gray-600'
-  }
-
-  if (isSessionActive && currentSession) {
+  if (authLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Session Header */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <BookOpen className="h-5 w-5" />
-                    Practice Session: {PRACTICE_TOPICS.find(t => t.id === currentSession.topic)?.name}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Difficulty: {selectedDifficulty.charAt(0).toUpperCase() + selectedDifficulty.slice(1)} | 
-                    Question {currentSession.questionsAnswered + 1} of 5
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium">Score</p>
-                  <p className="text-2xl font-bold text-green-600">{currentSession.totalScore}</p>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-
-          {/* Current Question */}
-          {currentQuestion && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Question {currentSession.questionsAnswered + 1}</span>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{currentQuestion.topic}</Badge>
-                    <Badge variant="outline">{currentQuestion.difficulty}</Badge>
-                    <Badge variant="outline">{currentQuestion.points} pts</Badge>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="prose max-w-none mb-6">
-                  <p className="text-lg leading-relaxed">{currentQuestion.question}</p>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="block text-sm font-medium">Your Answer</label>
-                  <textarea
-                    value={userAnswer}
-                    onChange={(e) => setUserAnswer(e.target.value)}
-                    placeholder="Type your answer here..."
-                    className="w-full h-32 p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={isLoading}
-                  />
-
-                  <div className="flex items-center gap-4">
-                    <Button
-                      onClick={submitAnswer}
-                      disabled={!userAnswer.trim() || isLoading}
-                      className="flex items-center gap-2"
-                    >
-                      {isLoading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          Evaluating...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-4 w-4" />
-                          Submit Answer
-                        </>
-                      )}
-                    </Button>
-
-                    <Button
-                      onClick={resetSession}
-                      variant="outline"
-                      className="flex items-center gap-2"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      End Session
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Results Display */}
-          {showResults && (
-            <Card className="border-green-200 bg-green-50">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3 text-green-800">
-                  <CheckCircle className="h-5 w-5" />
-                  <div>
-                    <p className="font-medium">Answer recorded.</p>
-                    <p className="text-sm">Evaluation is currently unavailable in practice mode.</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+      <div className="flex min-h-[80vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
       </div>
     )
   }
 
-  if (currentSession && !currentSession.isActive) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="max-w-2xl mx-auto text-center">
-          <CardHeader>
-            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <Trophy className="h-8 w-8 text-green-600" />
-            </div>
-            <CardTitle className="text-2xl">Practice Session Complete!</CardTitle>
-            <p className="text-muted-foreground">
-              Great job completing your practice session
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <p className="font-medium">Questions Answered</p>
-                <p className="text-2xl font-bold text-blue-600">{currentSession.questionsAnswered}</p>
-              </div>
-              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <p className="font-medium">Correct Answers</p>
-                <p className="text-2xl font-bold text-green-600">{currentSession.correctAnswers}</p>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <p className="text-sm font-medium text-muted-foreground">Final Score</p>
-              <p className="text-4xl font-bold text-green-600">{currentSession.totalScore}</p>
-              <p className="text-sm text-muted-foreground">
-                Accuracy: {Math.round((currentSession.correctAnswers / currentSession.questionsAnswered) * 100)}%
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <Button onClick={resetSession} className="flex-1">
-                Practice Again
-              </Button>
-              <Button onClick={resetSession} variant="outline" className="flex-1">
-                Back to Practice Hub
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  // Find weakness areas from real recommendations
+  const recommendedWeaknesses = recommendations.filter(
+    (r) => r.priority === "CRITICAL" || r.priority === "HIGH"
+  )
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold">Practice Hub</h1>
-          <p className="text-xl text-muted-foreground">
-            Sharpen your skills with targeted practice sessions
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-200 dark:border-slate-800 gap-4">
+        <div>
+          <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono text-slate-600 dark:text-slate-400 mb-2">
+            <Target className="h-3 w-3" />
+            <span>ADAPTIVE DRILL ENGINE</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            Targeted Skill Practice
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            Reinforce specific competency gaps identified by your interview evaluations with targeted drill questions.
           </p>
         </div>
 
-        {/* Practice Configuration */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              Start Practice Session
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Select Topic</label>
-                <Select value={selectedTopic} onValueChange={setSelectedTopic}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a topic to practice" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRACTICE_TOPICS.map((topic) => (
-                      <SelectItem key={topic.id} value={topic.id}>
-                        <div className="flex items-center gap-2">
-                          <topic.icon className="h-4 w-4" />
-                          {topic.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <div className="flex items-center space-x-3">
+          <Link href="/interview">
+            <Button variant="outline" size="sm" className="h-9 px-4 text-xs font-mono">
+              Live Mock Interview →
+            </Button>
+          </Link>
+        </div>
+      </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Difficulty Level</label>
-                <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DIFFICULTY_LEVELS.map((level) => (
-                      <SelectItem key={level.value} value={level.value}>
-                        {level.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <Button
-                onClick={startPracticeSession}
-                disabled={!selectedTopic || isLoading}
-                size="lg"
-                className="w-full md:w-auto"
+      {/* Recommended Weakness Alerts from Real Intelligence */}
+      {recommendedWeaknesses.length > 0 && (
+        <div className="mt-6 p-4 rounded-lg border border-amber-300 dark:border-amber-800/80 bg-amber-50/50 dark:bg-amber-950/20 text-xs font-mono space-y-2">
+          <div className="flex items-center text-amber-800 dark:text-amber-300 font-semibold">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            IDENTIFIED SKILL REMEDIATION PRIORITIES
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-700 dark:text-slate-300">
+            {recommendedWeaknesses.slice(0, 2).map((rec) => (
+              <div
+                key={rec.id}
+                className="p-2.5 rounded border border-amber-200 dark:border-amber-900/40 bg-white/80 dark:bg-[#0d121f] flex justify-between items-center"
               >
-                {isLoading ? 'Starting Session...' : 'Start Practice Session'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                <div>
+                  <span className="font-bold text-amber-700 dark:text-amber-400">[{rec.target_skill}]</span>{" "}
+                  <span className="text-[11px] text-slate-500">{rec.reason}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setSelectedTopic(rec.target_skill.toLowerCase())
+                    handleGenerateDrill()
+                  }}
+                  className="h-6 text-[10px] font-mono px-2"
+                >
+                  Drill →
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-        {/* Topic Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {PRACTICE_TOPICS.map((topic) => {
-            const progress = topicProgress.find(p => p.topic === topic.id)
-            const Icon = topic.icon
-
-            return (
-              <Card key={topic.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 ${topic.bgColor} rounded-lg flex items-center justify-center`}>
-                      <Icon className={`h-6 w-6 ${topic.color}`} />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{topic.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{topic.description}</p>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {progress && (
-                    <>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Progress</span>
-                          <span>{Math.round((progress.correctAnswers / progress.totalQuestions) * 100)}%</span>
-                        </div>
-                        <Progress value={(progress.correctAnswers / progress.totalQuestions) * 100} />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <p className="text-muted-foreground">Questions</p>
-                          <p className="font-medium">{progress.totalQuestions}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Score</p>
-                          <p className="font-medium">{progress.averageScore}%</p>
-                        </div>
-                      </div>
-
-                      <div className="text-xs text-muted-foreground">
-                        Last practiced: {new Date(progress.lastPracticed).toLocaleDateString()}
-                      </div>
-                    </>
-                  )}
-
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setSelectedTopic(topic.id)
-                      setSelectedDifficulty(topic.difficulty)
-                    }}
+      {/* Main Practice Workspace Grid */}
+      <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Topic & Calibration Controls */}
+        <div className="lg:col-span-4 space-y-6">
+          <div>
+            <label className="block text-xs font-mono text-slate-500 uppercase tracking-wider mb-2.5">
+              Select Practice Topic
+            </label>
+            <div className="space-y-2">
+              {DEFAULT_PRACTICE_TOPICS.map((topic) => {
+                const isSelected = selectedTopic === topic.id
+                return (
+                  <button
+                    key={topic.id}
+                    onClick={() => setSelectedTopic(topic.id)}
+                    className={`w-full p-3 rounded-lg border text-left transition-all ${
+                      isSelected
+                        ? "border-blue-600 bg-blue-50/30 dark:bg-blue-950/20 shadow-xs"
+                        : "border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] hover:border-slate-300 dark:hover:border-slate-700"
+                    }`}
                   >
-                    Practice {topic.name}
-                  </Button>
-                </CardContent>
-              </Card>
-            )
-          })}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{topic.title}</span>
+                      {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{topic.focus}</div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-mono text-slate-500 uppercase tracking-wider mb-2">
+              Difficulty Tier
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {["beginner", "intermediate", "advanced"].map((lvl) => (
+                <button
+                  key={lvl}
+                  onClick={() => setDifficulty(lvl)}
+                  className={`py-1.5 px-2 rounded text-xs font-mono uppercase transition-colors ${
+                    difficulty === lvl
+                      ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold"
+                      : "border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] text-slate-600 dark:text-slate-400"
+                  }`}
+                >
+                  {lvl}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Button
+            onClick={handleGenerateDrill}
+            disabled={isGenerating}
+            className="w-full h-10 text-xs font-mono bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 font-semibold rounded"
+          >
+            {isGenerating ? (
+              <span className="flex items-center space-x-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>GENERATING QUESTION...</span>
+              </span>
+            ) : (
+              <span className="flex items-center justify-center space-x-2">
+                <Play className="h-3.5 w-3.5" />
+                <span>GENERATE DRILL QUESTION</span>
+              </span>
+            )}
+          </Button>
         </div>
 
-        {/* Progress Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Overall Progress
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="text-center">
-                <p className="text-sm font-medium text-muted-foreground">Total Questions</p>
-                <p className="text-2xl font-bold">
-                  {topicProgress.reduce((sum, topic) => sum + topic.totalQuestions, 0)}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-medium text-muted-foreground">Correct Answers</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {topicProgress.reduce((sum, topic) => sum + topic.correctAnswers, 0)}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-medium text-muted-foreground">Average Score</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {Math.round(topicProgress.reduce((sum, topic) => sum + topic.averageScore, 0) / topicProgress.length)}%
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-medium text-muted-foreground">Time Spent</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {Math.round(topicProgress.reduce((sum, topic) => sum + topic.timeSpent, 0) / 60)}m
-                </p>
-              </div>
+        {/* Right Column: Live Drill & Evaluation View */}
+        <div className="lg:col-span-8">
+          {error && (
+            <div className="mb-4 rounded border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 p-3 text-xs text-rose-700 dark:text-rose-300">
+              {error}
             </div>
-          </CardContent>
-        </Card>
+          )}
+
+          {activeQuestion ? (
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] p-6 space-y-5">
+              {/* Question Header */}
+              <div>
+                <div className="flex items-center space-x-2 text-[10px] font-mono uppercase text-slate-400 mb-1.5">
+                  <span className="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold">
+                    {activeQuestion.topic}
+                  </span>
+                  <span>•</span>
+                  <span>Tier: {activeQuestion.difficulty}</span>
+                </div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                  {activeQuestion.question_text}
+                </h3>
+              </div>
+
+              {/* Response Input */}
+              <div className="space-y-2">
+                <label className="block text-xs font-mono text-slate-500 uppercase">
+                  Your Technical Formulation
+                </label>
+                <Textarea
+                  value={userAnswer}
+                  onChange={(e) => setUserAnswer(e.target.value)}
+                  onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !isEvaluating && userAnswer.trim()) {
+                      e.preventDefault()
+                      handleSubmitAnswer()
+                    }
+                  }}
+                  placeholder="Outline your approach, time/space complexity, and architecture tradeoffs... (Press Ctrl+Enter to submit)"
+                  rows={8}
+                  className="text-xs font-mono rounded border-slate-200 dark:border-slate-800 leading-relaxed focus-visible:ring-1 focus-visible:ring-blue-500"
+                />
+                <div className="flex justify-between items-center text-[11px] font-mono text-slate-500">
+                  <span>Press Ctrl+Enter to submit</span>
+                  <span>{userAnswer.trim().length} chars • {userAnswer.trim().split(/\s+/).filter(Boolean).length} words</span>
+                </div>
+              </div>
+
+              {/* Error Callout with Retry */}
+              {error && (
+                <div className="rounded border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 p-3 text-xs font-mono text-rose-700 dark:text-rose-300 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" />
+                    <span>{error}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleSubmitAnswer}
+                    disabled={isEvaluating}
+                    className="h-6 text-[10px] text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40"
+                  >
+                    Retry
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateDrill}
+                  disabled={isGenerating || isEvaluating}
+                  className="text-xs font-mono"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                  Skip / Next Drill
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={handleSubmitAnswer}
+                  disabled={isEvaluating || !userAnswer.trim()}
+                  className="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900"
+                >
+                  {isEvaluating ? (
+                    <span className="flex items-center space-x-1.5">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>EVALUATING...</span>
+                    </span>
+                  ) : (
+                    <span>SUBMIT DRILL (Ctrl+↵)</span>
+                  )}
+                </Button>
+              </div>
+
+              {/* Evaluation Output */}
+              {evaluation && (
+                <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800 space-y-4 font-mono text-xs">
+                  <div className="flex items-baseline justify-between">
+                    <span className="font-bold text-slate-900 dark:text-slate-100">DRILL EVALUATION</span>
+                    <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                      {evaluation.score} / 100
+                    </span>
+                  </div>
+
+                  {/* Dimension Cards */}
+                  {evaluation.dimensions && evaluation.dimensions.accuracy && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
+                        <span className="text-[10px] text-slate-500 uppercase block">Accuracy</span>
+                        <span className="font-bold text-slate-900 dark:text-slate-100">{evaluation.dimensions.accuracy}%</span>
+                      </div>
+                      <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
+                        <span className="text-[10px] text-slate-500 uppercase block">Depth</span>
+                        <span className="font-bold text-slate-900 dark:text-slate-100">{evaluation.dimensions.depth}%</span>
+                      </div>
+                      <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
+                        <span className="text-[10px] text-slate-500 uppercase block">Logic</span>
+                        <span className="font-bold text-slate-900 dark:text-slate-100">{evaluation.dimensions.problemSolving}%</span>
+                      </div>
+                      <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
+                        <span className="text-[10px] text-slate-500 uppercase block">Clarity</span>
+                        <span className="font-bold text-slate-900 dark:text-slate-100">{evaluation.dimensions.communication}%</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-slate-700 dark:text-slate-300 font-sans leading-relaxed">
+                    {evaluation.feedback}
+                  </p>
+
+                  {/* Strengths & Weaknesses */}
+                  {((evaluation.strengths && evaluation.strengths.length > 0) || (evaluation.weaknesses && evaluation.weaknesses.length > 0)) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      {evaluation.strengths && evaluation.strengths.length > 0 && (
+                        <div className="p-2.5 rounded bg-emerald-50/20 dark:bg-emerald-950/10 border border-emerald-200 dark:border-emerald-900/40">
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mb-1">STRENGTHS</span>
+                          <ul className="space-y-1 text-slate-700 dark:text-slate-300">
+                            {evaluation.strengths.map((str: string, i: number) => (
+                              <li key={i} className="flex items-start gap-1.5 font-sans text-xs">
+                                <span className="h-1 w-1 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                                <span>{str}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {evaluation.weaknesses && evaluation.weaknesses.length > 0 && (
+                        <div className="p-2.5 rounded bg-amber-50/20 dark:bg-amber-950/10 border border-amber-200 dark:border-amber-900/40">
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mb-1">REMEDIATION TARGETS</span>
+                          <ul className="space-y-1 text-slate-700 dark:text-slate-300">
+                            {evaluation.weaknesses.map((w: string, i: number) => (
+                              <li key={i} className="flex items-start gap-1.5 font-sans text-xs">
+                                <span className="h-1 w-1 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                                <span>{w}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {evaluation.follow_up && (
+                    <div className="p-3 rounded bg-blue-50/50 dark:bg-blue-950/20 border-l-2 border-blue-600 text-slate-800 dark:text-slate-200">
+                      <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase block mb-1">
+                        Adaptive Follow-Up Probe
+                      </span>
+                      {evaluation.follow_up}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-[#0d121f]/50 p-12 text-center">
+              <BookOpen className="h-8 w-8 text-slate-400 mx-auto mb-3" />
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                Ready to Initiate Targeted Practice
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto mb-4">
+                Select a topic from the left or choose one of your identified skill gaps, then click Generate to begin.
+              </p>
+              <Button
+                size="sm"
+                onClick={handleGenerateDrill}
+                disabled={isGenerating}
+                className="text-xs font-mono bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900"
+              >
+                Start Drill Now
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
+  )
+}
+
+export default function PracticePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[80vh] items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        </div>
+      }
+    >
+      <PracticeContent />
+    </Suspense>
   )
 }

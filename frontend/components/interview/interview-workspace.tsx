@@ -147,6 +147,7 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false)
   const [finalSummary, setFinalSummary] = useState<any>(null)
+  const [confirmModal, setConfirmModal] = useState<"end_assessment" | "reset_draft" | null>(null)
 
   // 1. Initial State Hydration & Graceful Refresh Recovery
   const loadAuthoritativeState = useCallback(async () => {
@@ -241,6 +242,17 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
   useEffect(() => {
     loadAuthoritativeState()
   }, [loadAuthoritativeState])
+
+  // Escape key handler for confirmation dialogs
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && confirmModal) {
+        setConfirmModal(null)
+      }
+    }
+    window.addEventListener("keydown", handleGlobalKeyDown)
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown)
+  }, [confirmModal])
 
   // 2. Draft Storage & Recovery Helpers
   const getDraftKey = (qId: string, mode: "text" | "code") =>
@@ -690,12 +702,8 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              if (confirm("Conclude this assessment early? Current answers will be synthesized into your final score.")) {
-                handleFinalizeAssessment("Candidate ended session")
-              }
-            }}
-            className="text-xs text-muted-foreground hover:text-destructive h-8 px-2.5"
+            onClick={() => setConfirmModal("end_assessment")}
+            className="text-xs text-muted-foreground hover:text-destructive h-8 px-2.5 focus-visible:ring-1 focus-visible:ring-destructive"
           >
             <LogOut className="h-3.5 w-3.5 mr-1" />
             End Assessment
@@ -942,12 +950,18 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
                   <textarea
                     value={textAnswer}
                     onChange={(e) => handleTextChange(e.target.value)}
-                    placeholder="Provide your solution, technical reasoning, complexity trade-offs, or architectural decisions..."
+                    onKeyDown={(e) => {
+                      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !isSubmitting && textAnswer.trim().length >= 10) {
+                        e.preventDefault()
+                        handleSubmitSolution()
+                      }
+                    }}
+                    placeholder="Provide your solution, technical reasoning, complexity trade-offs, or architectural decisions... (Press Ctrl+Enter to submit)"
                     className="flex-1 w-full p-3 text-xs sm:text-sm font-sans bg-transparent border border-border/40 rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary min-h-[220px]"
                     disabled={isSubmitting}
                   />
                   <div className="flex justify-between items-center text-[11px] text-muted-foreground">
-                    <span>Minimum 10 characters required</span>
+                    <span>Minimum 10 characters required • Press Ctrl+Enter to submit</span>
                     <span className="font-mono">
                       {textAnswer.trim().length} chars • {textAnswer.trim().split(/\s+/).filter(Boolean).length} words
                     </span>
@@ -967,18 +981,29 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
                     />
                   </div>
                   <div className="flex justify-between items-center text-[11px] text-muted-foreground">
-                    <span>Editor with language support</span>
+                    <span>Monaco editor with runtime support</span>
                     <span className="font-mono">{codeAnswer.length} chars</span>
                   </div>
                 </div>
               )}
 
-              {/* Error Banner */}
+              {/* Error Banner with Retry */}
               {evalError && (
-                <Alert variant="destructive" className="py-2 text-xs">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>{evalError}</AlertDescription>
-                </Alert>
+                <div className="rounded border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{evalError}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleSubmitSolution}
+                    disabled={isSubmitting}
+                    className="h-6 text-[11px] text-destructive hover:bg-destructive/20 font-mono"
+                  >
+                    Retry Submission
+                  </Button>
+                </div>
               )}
 
               {/* Action Controls */}
@@ -986,13 +1011,8 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    if (confirm("Reset current draft to empty template?")) {
-                      if (answerMode === "text") setTextAnswer("")
-                      else setCodeAnswer(LANGUAGE_STARTERS[selectedLanguage] || "")
-                    }
-                  }}
-                  className="text-xs text-muted-foreground h-8"
+                  onClick={() => setConfirmModal("reset_draft")}
+                  className="text-xs text-muted-foreground hover:text-foreground h-8"
                   disabled={isSubmitting}
                 >
                   <RotateCcw className="h-3 w-3 mr-1" />
@@ -1001,31 +1021,20 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
 
                 <div className="flex items-center gap-2">
                   {answerMode === "code" && (
-                    <>
-                      <Button
-                        onClick={handleRunCode}
-                        disabled={isRunningCode || isSubmitting || codeAnswer.trim().length < 5}
-                        size="sm"
-                        variant="secondary"
-                        className="text-xs h-8 px-4"
-                      >
-                        {isRunningCode ? (
-                          <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                        ) : (
-                          <Code2 className="h-3.5 w-3.5 mr-1.5" />
-                        )}
-                        Run
-                      </Button>
-                      <Button
-                        onClick={() => alert("AI Review provides non-binding feedback. (Not implemented in this demo)")}
-                        disabled={isSubmitting || codeAnswer.trim().length < 5}
-                        size="sm"
-                        variant="outline"
-                        className="text-xs h-8 px-4 border-amber-500/50 text-amber-600 dark:text-amber-400"
-                      >
-                        AI Review
-                      </Button>
-                    </>
+                    <Button
+                      onClick={handleRunCode}
+                      disabled={isRunningCode || isSubmitting || codeAnswer.trim().length < 5}
+                      size="sm"
+                      variant="secondary"
+                      className="text-xs h-8 px-4"
+                    >
+                      {isRunningCode ? (
+                        <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <Code2 className="h-3.5 w-3.5 mr-1.5" />
+                      )}
+                      Run Code
+                    </Button>
                   )}
                   <Button
                     onClick={handleSubmitSolution}
@@ -1034,7 +1043,7 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
                       (answerMode === "text" ? textAnswer.trim().length < 10 : codeAnswer.trim().length < 10)
                     }
                     size="sm"
-                    className="text-xs h-8 px-4"
+                    className="text-xs h-8 px-4 bg-primary text-primary-foreground font-medium"
                   >
                     {isSubmitting ? (
                       <>
@@ -1044,7 +1053,7 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
                     ) : (
                       <>
                         <Send className="h-3.5 w-3.5 mr-1.5" />
-                        Submit
+                        Submit Answer
                       </>
                     )}
                   </Button>
@@ -1396,6 +1405,105 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
           </div>
         </aside>
       </div>
+
+      {/* Accessible Confirmation Modals */}
+      {confirmModal === "end_assessment" && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-end-title"
+          onClick={() => setConfirmModal(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded bg-amber-500/10 text-amber-500 shrink-0">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 id="confirm-end-title" className="text-base font-semibold text-foreground">
+                  Conclude Assessment Early?
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                  Your submitted answers up to this point will be synthesized by the AI assessment engine into your final candidate evaluation. Unanswered questions will be recorded as incomplete.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-border/40">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmModal(null)}
+                disabled={isFinalizing}
+                className="text-xs h-8"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => {
+                  setConfirmModal(null)
+                  handleFinalizeAssessment("Candidate ended session")
+                }}
+                disabled={isFinalizing}
+                className="text-xs h-8"
+              >
+                {isFinalizing ? "Synthesizing..." : "Conclude Assessment"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmModal === "reset_draft" && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-reset-title"
+          onClick={() => setConfirmModal(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <h2 id="confirm-reset-title" className="text-sm font-semibold text-foreground">
+                Reset Active Draft?
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                This will clear unsaved progress on the current question and restore the initial template.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-1 border-t border-border/40">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmModal(null)}
+                className="text-xs h-8"
+              >
+                Keep Editing
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => {
+                  setConfirmModal(null)
+                  if (answerMode === "text") setTextAnswer("")
+                  else setCodeAnswer(LANGUAGE_STARTERS[selectedLanguage] || "")
+                }}
+                className="text-xs h-8"
+              >
+                Reset Draft
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

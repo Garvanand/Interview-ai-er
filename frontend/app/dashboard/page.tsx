@@ -361,7 +361,7 @@ export default function RedesignedDashboardPage() {
               <span>Authoritative assessment engine</span>
               <span className="text-border">•</span>
               <span className="font-mono text-xs text-muted-foreground/80">
-                Evaluation Model: Gemini 3.1 Pro (High) Structured
+                Evaluation Model: Groq / openai/gpt-oss-120b Structured
               </span>
               <span className="text-border">•</span>
               <span className="font-mono text-xs text-muted-foreground/80">

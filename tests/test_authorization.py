@@ -279,3 +279,41 @@ def test_403_response_shape(mock_get_client, mock_get_session, client):
     assert data.get("error") is True
     assert data.get("code") == "UNAUTHORIZED"
     assert "message" in data
+
+
+# ─────────────────────────────────────────────────────────────────
+# 7. Fallback Mode & Persistence Recovery Tests
+# ─────────────────────────────────────────────────────────────────
+
+@patch("app.auth.supabase_service._get_client")
+def test_fallback_mode_auto_restores_session_for_authenticated_user(mock_get_client, client):
+    """When remote Supabase tables are unmigrated, an authenticated user accessing their session recovers gracefully."""
+    from app.services.supabase_service import SupabaseService
+    mock_sb = _mock_auth_success(mock_get_client, user_id="user-auto-1")
+    mock_sb.table.side_effect = Exception("PGRST205: Could not find the table 'public.interview_sessions' in the schema cache")
+    SupabaseService._remote_available = False
+    
+    response = client.get(
+        "/api/session/recovered-session-123",
+        headers={"Authorization": "Bearer valid-token-auto-1"},
+    )
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data.get("success") is True
+    assert data["data"]["session"]["id"] == "recovered-session-123"
+    assert data["data"]["session"]["user_id"] == "user-auto-1"
+
+
+def test_shared_supabase_service_state_across_instances():
+    """Independent SupabaseService instances must share the same underlying memory cache."""
+    from app.services.supabase_service import SupabaseService
+    svc1 = SupabaseService()
+    svc2 = SupabaseService()
+
+    svc1.create_local_session("shared-test-id", "test-user-shared", "Software Engineer")
+    found = svc2.get_session("shared-test-id")
+
+    assert found is not None
+    assert found["id"] == "shared-test-id"
+    assert found["user_id"] == "test-user-shared"
+

@@ -1,110 +1,45 @@
 "use client"
 
-import { EnhancedCodeEditor } from '@/components/ide/enhanced-code-editor'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Code2, Play, BookOpen, Zap } from 'lucide-react'
+import { EnhancedCodeEditor } from "@/components/ide/enhanced-code-editor"
+import { Code2, Terminal, Cpu, Play, CheckCircle2, ShieldCheck, Layers } from "lucide-react"
 
 export default function IDEPage() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold">Code IDE</h1>
-          <p className="text-xl text-muted-foreground">
-            Write, run, and evaluate code with AI-powered analysis
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-200 dark:border-slate-800 gap-4 mb-8">
+        <div>
+          <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono text-slate-600 dark:text-slate-400 mb-2">
+            <Terminal className="h-3 w-3" />
+            <span>SUBPROCESS RUNTIME</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            Technical Coding Workspace
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            Write, execute, and evaluate algorithmic implementations in an isolated process sandbox with sub-second feedback.
           </p>
         </div>
 
-        {/* Features Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Code2 className="h-5 w-5 text-blue-600" />
-                Multi-Language Support
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Support for Python, JavaScript, TypeScript, Java, C++, C#, Go, and Rust with syntax highlighting and intelligent code completion.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Play className="h-5 w-5 text-green-600" />
-                Code Execution
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Run your code in a safe environment and see real-time output. Perfect for testing algorithms and data structures.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-purple-600" />
-                AI Evaluation
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Get instant feedback on code quality, correctness, efficiency, and best practices with detailed scoring breakdown.
-              </p>
-            </CardContent>
-          </Card>
+        {/* Runtime Spec Pills */}
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+          <span className="px-2 py-1 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Python 3.12 Engine
+          </span>
+          <span className="px-2 py-1 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            Node.js Runtime
+          </span>
+          <span className="px-2 py-1 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] text-slate-600 dark:text-slate-400">
+            Timeout: 5.0s
+          </span>
         </div>
+      </div>
 
-        {/* Enhanced Code Editor */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5" />
-              Code Editor & Evaluation
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Write your code, run it, and submit for AI-powered evaluation
-            </p>
-          </CardHeader>
-          <CardContent>
-            <EnhancedCodeEditor />
-          </CardContent>
-        </Card>
-
-        {/* Additional Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>How to Use</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-medium mb-2">Getting Started</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Select your programming language from the dropdown</li>
-                  <li>• Write or modify the provided code template</li>
-                  <li>• Use the "Run Code" button to test your solution</li>
-                  <li>• Submit your code for comprehensive evaluation</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-medium mb-2">Evaluation Criteria</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Code Quality: Readability and structure</li>
-                  <li>• Correctness: Logical accuracy</li>
-                  <li>• Efficiency: Time and space complexity</li>
-                  <li>• Best Practices: Coding standards and conventions</li>
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Main IDE Workspace */}
+      <div className="space-y-6">
+        <EnhancedCodeEditor />
       </div>
     </div>
   )
