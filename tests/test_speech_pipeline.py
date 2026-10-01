@@ -174,17 +174,17 @@ class TestWhisperTranscriptionService:
 # ─────────────────────────────────────────────────────────────────
 
 class TestTranscribeEndpoint:
-    @patch("app.security.auth.supabase_service._get_client")
+    @patch("app.security.auth._supabase_service._get_client")
     def test_transcribe_unauthorized(self, mock_get_client, client):
         """Missing Authorization header returns 401."""
         res = client.post("/api/transcribe")
         assert res.status_code == 401
         data = res.get_json()
         assert data["success"] is False
-        assert data["code"] == "UNAUTHORIZED"
+        assert data["code"] == "AUTHENTICATION_REQUIRED"
 
     @patch("app.api.interview._get_transcription_service")
-    @patch("app.security.auth.supabase_service._get_client")
+    @patch("app.security.auth._supabase_service._get_client")
     def test_transcribe_missing_file_returns_400(self, mock_get_client, mock_get_svc, client):
         """Calling /api/transcribe without an audio file returns 400."""
         _mock_auth_user(mock_get_client)
@@ -195,7 +195,7 @@ class TestTranscribeEndpoint:
         assert data["code"] == "NO_AUDIO_FILE"
 
     @patch("app.api.interview._get_transcription_service")
-    @patch("app.security.auth.supabase_service._get_client")
+    @patch("app.security.auth._supabase_service._get_client")
     def test_transcribe_empty_file_returns_400(self, mock_get_client, mock_get_svc, client):
         """Calling /api/transcribe with an empty file returns 400."""
         _mock_auth_user(mock_get_client)
@@ -209,7 +209,7 @@ class TestTranscribeEndpoint:
         assert json_data["code"] == "AUDIO_TOO_SMALL"
 
     @patch("app.api.interview._get_transcription_service")
-    @patch("app.security.auth.supabase_service._get_client")
+    @patch("app.security.auth._supabase_service._get_client")
     def test_transcribe_success(self, mock_get_client, mock_get_svc, client):
         """Valid audio upload returns transcription and all required metadata."""
         _mock_auth_user(mock_get_client)
@@ -251,7 +251,7 @@ class TestTranscribeEndpoint:
 # ─────────────────────────────────────────────────────────────────
 
 class TestSubmitVoiceAnswerEndpoint:
-    @patch("app.security.auth.supabase_service._get_client")
+    @patch("app.security.auth._supabase_service._get_client")
     def test_submit_voice_answer_unauthorized(self, mock_get_client, client):
         """Submission without authorization header returns 401."""
         res = client.post(
@@ -263,9 +263,9 @@ class TestSubmitVoiceAnswerEndpoint:
             },
         )
         assert res.status_code == 401
-        assert res.get_json()["code"] == "UNAUTHORIZED"
+        assert res.get_json()["code"] == "AUTHENTICATION_REQUIRED"
 
-    @patch("app.security.auth.supabase_service._get_client")
+    @patch("app.security.auth._supabase_service._get_client")
     def test_submit_voice_answer_too_short(self, mock_get_client, client):
         """Transcripts under 10 characters are rejected with 400."""
         _mock_auth_user(mock_get_client)
@@ -288,7 +288,7 @@ class TestSubmitVoiceAnswerEndpoint:
 
     @patch("app.api.interview._supabase")
     @patch("app.api.interview._orchestrator")
-    @patch("app.security.auth.supabase_service._get_client")
+    @patch("app.security.auth._supabase_service._get_client")
     def test_submit_voice_answer_full_pipeline(
         self, mock_get_client, mock_orchestrator, mock_supabase, client
     ):
@@ -401,7 +401,7 @@ class TestModalityParity:
 
     @patch("app.api.interview._supabase")
     @patch("app.api.interview._orchestrator")
-    @patch("app.security.auth.supabase_service._get_client")
+    @patch("app.security.auth._supabase_service._get_client")
     def test_typed_and_voice_answers_evaluate_identically(
         self, mock_get_client, mock_orchestrator, mock_supabase, client
     ):
@@ -480,7 +480,7 @@ class TestModalityParity:
 
     @patch("app.api.interview._supabase")
     @patch("app.api.interview._orchestrator")
-    @patch("app.security.auth.supabase_service._get_client")
+    @patch("app.security.auth._supabase_service._get_client")
     def test_submit_answer_accepts_voice_modality_and_metadata(
         self, mock_get_client, mock_orchestrator, mock_supabase, client
     ):
@@ -548,7 +548,7 @@ class TestTranscriptEditing:
 
     @patch("app.api.interview._supabase")
     @patch("app.api.interview._orchestrator")
-    @patch("app.security.auth.supabase_service._get_client")
+    @patch("app.security.auth._supabase_service._get_client")
     def test_edited_transcript_evaluated_correctly(
         self, mock_get_client, mock_orchestrator, mock_supabase, client
     ):

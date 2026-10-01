@@ -9,6 +9,7 @@ from app.ai import AssessmentEngine
 from app.analytics import LongitudinalAnalyticsService
 from app.services.question_difficulty_service import QuestionDifficultyService
 from app.services.question_skill_service import QuestionSkillService
+from app.services.transcription import WhisperTranscriptionService
 
 __all__ = [
     "InterviewOrchestrator",
@@ -19,5 +20,6 @@ __all__ = [
     "LongitudinalAnalyticsService",
     "QuestionDifficultyService",
     "QuestionSkillService",
+    "WhisperTranscriptionService",
 ]
 
