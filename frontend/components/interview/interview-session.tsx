@@ -11,6 +11,8 @@ import { InterviewTimer } from './timer'
 import { AntiCheatGuard } from '@/components/anti-cheat/anti-cheat-guard'
 import { apiClient, type Question, type AnswerEvaluation, type SecurityCheck } from '@/lib/api-client'
 import { AlertCircle, CheckCircle, XCircle, Code, MessageSquare, Camera, Shield } from 'lucide-react'
+import { VoiceRecorderButton } from './voice-recorder-button'
+import type { TranscriptionMetadata } from '@/hooks/use-voice-recorder'
 
 interface InterviewSessionProps {
   userId: string
@@ -22,6 +24,7 @@ export function InterviewSession({ userId, interviewType, onSessionEnd }: Interv
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null)
   const [answerText, setAnswerText] = useState('')
+  const [voiceMetadata, setVoiceMetadata] = useState<TranscriptionMetadata | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [evaluation, setEvaluation] = useState<AnswerEvaluation | null>(null)
   const [sessionScore, setSessionScore] = useState(0)
@@ -171,7 +174,13 @@ export function InterviewSession({ userId, interviewType, onSessionEnd }: Interv
         instant_chars: instantChars
       }))
       
-      const result = await apiClient.submitAnswer(sessionId, currentQuestion.id, answerText)
+      let result: any
+      if (voiceMetadata && voiceMetadata.transcript.trim() === answerText.trim()) {
+        result = await apiClient.submitVoiceAnswer(sessionId, currentQuestion.id, answerText, voiceMetadata)
+      } else {
+        result = await apiClient.submitAnswer(sessionId, currentQuestion.id, answerText)
+      }
+      setVoiceMetadata(null)
       setEvaluation(result.evaluation)
       setSessionScore(result.session_score)
       
@@ -282,9 +291,18 @@ export function InterviewSession({ userId, interviewType, onSessionEnd }: Interv
             <p className="text-lg">{currentQuestion.question_text}</p>
             
             <div className="space-y-3">
-              <label htmlFor="answer" className="text-sm font-medium">
-                Your Answer
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="answer" className="text-sm font-medium">
+                  Your Answer
+                </label>
+                <VoiceRecorderButton
+                  onTranscriptReady={(transcript, metadata) => {
+                    setAnswerText(transcript)
+                    setVoiceMetadata(metadata)
+                  }}
+                  disabled={isSubmitting}
+                />
+              </div>
               <Textarea
                 id="answer"
                 value={answerText}

@@ -43,12 +43,29 @@ class SubmitAnswerRequest(BaseModel):
     session_id: str
     question_id: str
     answer_text: str
+    input_modality: Optional[str] = "typed"  # "typed" | "voice"
+    transcription_metadata: Optional[Dict[str, Any]] = None
 
     @field_validator("answer_text")
     @classmethod
     def answer_not_empty(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("answer_text must not be empty")
+        return v.strip()
+
+
+class SubmitVoiceAnswerRequest(BaseModel):
+    """Voice answer submission — carries transcript + transcription metadata."""
+    session_id: str
+    question_id: str
+    transcript: str
+    transcription_metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("transcript")
+    @classmethod
+    def transcript_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("transcript must not be empty")
         return v.strip()
 
 

@@ -13,6 +13,8 @@ import { AntiCheatGuard } from '../anti-cheat/anti-cheat-guard'
 import { EnhancedCodeEditor } from '../ide/enhanced-code-editor'
 import { InterviewChat } from './interview-chat'
 import { apiClient, type Question, type CodeEvaluation } from '@/lib/api-client'
+import { VoiceRecorderButton } from './voice-recorder-button'
+import type { TranscriptionMetadata } from '@/hooks/use-voice-recorder'
 import { 
   Code2, 
   MessageCircle, 
@@ -64,6 +66,7 @@ export function InterviewInterface({ sessionId, onSessionEnd }: InterviewInterfa
 
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [voiceMetadata, setVoiceMetadata] = useState<TranscriptionMetadata | null>(null)
 
   // Initialize interview session
   useEffect(() => {
@@ -157,11 +160,22 @@ export function InterviewInterface({ sessionId, onSessionEnd }: InterviewInterfa
     setError(null)
 
     try {
-      const result = await apiClient.submitAnswer(
-        sessionId,
-        state.currentQuestion.id,
-        state.currentAnswer
-      )
+      let result: any
+      if (voiceMetadata && voiceMetadata.transcript.trim() === state.currentAnswer.trim()) {
+        result = await apiClient.submitVoiceAnswer(
+          sessionId,
+          state.currentQuestion.id,
+          state.currentAnswer,
+          voiceMetadata
+        )
+      } else {
+        result = await apiClient.submitAnswer(
+          sessionId,
+          state.currentQuestion.id,
+          state.currentAnswer
+        )
+      }
+      setVoiceMetadata(null)
 
       // Update session score
       setState(prev => ({
@@ -408,8 +422,15 @@ export function InterviewInterface({ sessionId, onSessionEnd }: InterviewInterfa
 
           {/* Answer Input */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle>Your Answer</CardTitle>
+              <VoiceRecorderButton
+                onTranscriptReady={(transcript, metadata) => {
+                  setState(prev => ({ ...prev, currentAnswer: transcript }))
+                  setVoiceMetadata(metadata)
+                }}
+                disabled={!state.isSessionActive || state.isPaused || isLoading}
+              />
             </CardHeader>
             <CardContent>
               <textarea

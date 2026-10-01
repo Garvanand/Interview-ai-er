@@ -246,8 +246,15 @@ class SupabaseService:
             logger.warning(f"Failed to store question remotely: {e}. Stored in local fallback cache.")
         return question_data['id']
 
-    def store_answer(self, session_id: str, question_id: str, answer_text: str, evaluation: Dict[str, Any]) -> bool:
-        """Store an answer and its evaluation in normalized tables"""
+    def store_answer(
+        self,
+        session_id: str,
+        question_id: str,
+        answer_text: str,
+        evaluation: Dict[str, Any],
+        transcription_metadata: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Store an answer and its evaluation in normalized tables (with optional voice transcription metadata)."""
         if session_id in self._local_questions:
             for q in self._local_questions[session_id]:
                 if q.get('id') == question_id:
@@ -255,6 +262,13 @@ class SupabaseService:
                     q['evaluation_score'] = evaluation.get('score', 0)
                     q['evaluation_feedback'] = evaluation.get('feedback', '')
                     q['evaluation_details'] = evaluation
+                    if transcription_metadata:
+                        q['transcript'] = answer_text
+                        q['transcription_model'] = transcription_metadata.get('model_id') or transcription_metadata.get('transcription_model')
+                        q['language'] = transcription_metadata.get('language')
+                        q['duration'] = transcription_metadata.get('duration_seconds') or transcription_metadata.get('duration')
+                        q['timestamp'] = transcription_metadata.get('timestamp')
+                        q['transcription_metadata'] = transcription_metadata
             self._save_cache_to_disk()
         try:
             client = self._get_client()
@@ -265,6 +279,16 @@ class SupabaseService:
                 'response_text': answer_text,
                 'submitted_at': datetime.now(timezone.utc).isoformat()
             }
+            if transcription_metadata:
+                response_data['metadata'] = {
+                    'transcript': answer_text,
+                    'transcription_model': transcription_metadata.get('model_id') or transcription_metadata.get('transcription_model'),
+                    'language': transcription_metadata.get('language'),
+                    'duration': transcription_metadata.get('duration_seconds') or transcription_metadata.get('duration'),
+                    'timestamp': transcription_metadata.get('timestamp'),
+                    'confidence': transcription_metadata.get('confidence'),
+                    'latency_ms': transcription_metadata.get('latency_ms'),
+                }
             client.table('responses').insert(response_data).execute()
             
             eval_data = {
@@ -281,6 +305,7 @@ class SupabaseService:
         except Exception as e:
             logger.warning(f"Failed to store answer remotely: {e}. Stored in local fallback cache.")
             return True
+
 
     def store_code_submission(self, session_id: str, question_id: str, code: str, language: str, evaluation: Dict[str, Any]) -> bool:
         """Store code submission and evaluation in normalized tables"""

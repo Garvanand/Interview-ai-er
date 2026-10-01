@@ -39,7 +39,10 @@ import {
   LogOut,
   Target,
   BarChart2,
+  Mic,
 } from "lucide-react"
+import { VoiceRecorderButton } from "./voice-recorder-button"
+import type { TranscriptionMetadata } from "@/hooks/use-voice-recorder"
 
 const MonacoEditor = dynamic(() => import("../ide/code-editor"), { ssr: false })
 
@@ -118,6 +121,7 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
   const [textAnswer, setTextAnswer] = useState<string>("")
   const [codeAnswer, setCodeAnswer] = useState<string>(LANGUAGE_STARTERS.python)
   const [selectedLanguage, setSelectedLanguage] = useState<string>("python")
+  const [voiceMetadata, setVoiceMetadata] = useState<TranscriptionMetadata | null>(null)
 
   // Submission & evaluation feedback state
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
@@ -374,7 +378,16 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
     try {
       let result: any
       if (answerMode === "text") {
-        result = await apiClient.submitAnswer(sessionId, currentQuestion.id, submissionContent)
+        if (voiceMetadata && voiceMetadata.transcript.trim() === submissionContent.trim()) {
+          result = await apiClient.submitVoiceAnswer(
+            sessionId,
+            currentQuestion.id,
+            submissionContent,
+            voiceMetadata
+          )
+        } else {
+          result = await apiClient.submitAnswer(sessionId, currentQuestion.id, submissionContent)
+        }
       } else {
         result = await apiClient.submitCode(sessionId, currentQuestion.id, submissionContent, selectedLanguage)
       }
@@ -387,6 +400,7 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
 
       // Clean local draft now that submission succeeded
       clearSavedDraft(currentQuestion.id)
+      setVoiceMetadata(null)
 
       // Refresh authoritative session state and details
       const [updatedState, updatedDetails] = await Promise.all([
@@ -947,9 +961,32 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
               {/* Text Answer Input */}
               {answerMode === "text" && (
                 <div className="flex-1 flex flex-col space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Type your answer or record using speech-to-text:</span>
+                      {voiceMetadata && (
+                        <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary">
+                          <Mic className="h-2.5 w-2.5" />
+                          Voice attached ({voiceMetadata.duration_seconds.toFixed(1)}s)
+                        </Badge>
+                      )}
+                    </div>
+                    <VoiceRecorderButton
+                      onTranscriptReady={(transcript, metadata) => {
+                        handleTextChange(transcript)
+                        setVoiceMetadata(metadata)
+                      }}
+                      disabled={isSubmitting}
+                    />
+                  </div>
                   <textarea
                     value={textAnswer}
-                    onChange={(e) => handleTextChange(e.target.value)}
+                    onChange={(e) => {
+                      handleTextChange(e.target.value)
+                      if (voiceMetadata && e.target.value !== voiceMetadata.transcript) {
+                        setVoiceMetadata((prev) => (prev ? { ...prev, transcript: e.target.value } : null))
+                      }
+                    }}
                     onKeyDown={(e) => {
                       if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !isSubmitting && textAnswer.trim().length >= 10) {
                         e.preventDefault()

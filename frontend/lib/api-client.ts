@@ -232,17 +232,69 @@ class APIClient {
     return res?.data ?? res
   }
 
-  async submitAnswer(sessionId: string, questionId: string, answerText: string): Promise<any> {
+  async submitAnswer(sessionId: string, questionId: string, answerText: string, inputModality: string = 'typed'): Promise<any> {
     const res: any = await this.request('/submit_answer', {
       method: 'POST',
       body: JSON.stringify({
         session_id: sessionId,
         question_id: questionId,
         answer_text: answerText,
+        input_modality: inputModality,
       }),
     })
     return res?.data ?? res
   }
+
+  async submitVoiceAnswer(
+    sessionId: string,
+    questionId: string,
+    transcript: string,
+    transcriptionMetadata: Record<string, any> = {}
+  ): Promise<any> {
+    const res: any = await this.request('/submit_voice_answer', {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: sessionId,
+        question_id: questionId,
+        transcript,
+        transcription_metadata: transcriptionMetadata,
+      }),
+    })
+    return res?.data ?? res
+  }
+
+  async transcribeAudio(audioBlob: Blob): Promise<any> {
+    const formData = new FormData()
+    formData.append('file', audioBlob, 'recording.webm')
+
+    let headers: Record<string, string> = {}
+    try {
+      const supabase = getBrowserSupabaseClient()
+      if (supabase) {
+        const { data } = await supabase.auth.getSession()
+        if (data.session?.access_token) {
+          headers['Authorization'] = `Bearer ${data.session.access_token}`
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to attach auth token", e)
+    }
+
+    const response = await fetch(`${API_BASE_URL}/transcribe`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${response.status}`)
+    }
+
+    const res = await response.json()
+    return res?.data ?? res
+  }
+
 
   async submitCode(sessionId: string, questionId: string, code: string, language: string): Promise<any> {
     const res: any = await this.request('/submit_code', {

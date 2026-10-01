@@ -23,6 +23,7 @@ from app.security import (
 from app.schemas import (
     StartSessionRequest,
     SubmitAnswerRequest,
+    SubmitVoiceAnswerRequest,
     SubmitCodeRequest,
     FollowUpRequest,
     SecurityCheckRequest,
@@ -51,6 +52,17 @@ ai_engine = _ai_engine
 security_service = _security
 orchestrator = _orchestrator
 sandbox = _sandbox
+
+# Whisper transcription — lazy-loaded (no model loaded until first request)
+_transcription_service = None
+
+def _get_transcription_service():
+    """Lazy-init the Whisper service so we don't pay cold-start cost at import."""
+    global _transcription_service
+    if _transcription_service is None:
+        from app.services.transcription import WhisperTranscriptionService
+        _transcription_service = WhisperTranscriptionService()
+    return _transcription_service
 
 
 def _parse_json(schema_class):
@@ -159,7 +171,23 @@ def submit_answer():
         question_id=req.question_id,
         answer_text=req.answer_text,
         is_code=False,
+        transcription_metadata=req.transcription_metadata,
     )
+
+    if req.input_modality == "voice" or req.transcription_metadata:
+        meta = req.transcription_metadata or {}
+        _supabase.log_event(req.session_id, "voice_answer_submitted", {
+            "question_id": req.question_id,
+            "input_modality": "voice",
+            "transcript": req.answer_text,
+            "transcription_model": meta.get("model_id"),
+            "language": meta.get("language"),
+            "duration": meta.get("duration_seconds") or meta.get("duration"),
+            "timestamp": meta.get("timestamp"),
+            "confidence": meta.get("confidence"),
+            "latency_ms": meta.get("latency_ms"),
+        })
+
     return jsonify(success({
         "question_id": req.question_id,
         "evaluation": result["evaluation"],
@@ -170,6 +198,7 @@ def submit_answer():
         "is_last_question": result["is_last_question"],
         "skills_overview": result["skills_overview"],
     }, "Answer submitted successfully")), 200
+
 
 
 @interview_bp.route("/submit_code", methods=["POST"])
@@ -215,6 +244,117 @@ def run_code():
 
     result = _sandbox.execute(code, language)
     return jsonify(success(result, "Code executed")), 200
+
+
+# ─────────────────────────────────────────────────────────────────
+# Voice / Transcription
+# ─────────────────────────────────────────────────────────────────
+
+@interview_bp.route("/transcribe", methods=["POST"])
+@require_auth
+def transcribe_audio():
+    """
+    Accept an audio file upload and return a Whisper transcription.
+
+    The frontend sends a multipart/form-data request with:
+      - file: the audio blob (WAV or WebM)
+    Returns the transcript text plus all metadata so the user can
+    edit the transcript before submitting it as an answer.
+    """
+    if "file" not in request.files:
+        return jsonify(error("No audio file provided", "NO_AUDIO_FILE")), 400
+
+    audio_file = request.files["file"]
+    content_type = audio_file.content_type or "audio/wav"
+    audio_bytes = audio_file.read()
+
+    if not audio_bytes or len(audio_bytes) < 100:
+        return jsonify(error("Audio file is empty or too small", "AUDIO_TOO_SMALL")), 400
+
+    try:
+        svc = _get_transcription_service()
+        result = svc.transcribe(audio_bytes, content_type=content_type)
+
+        if result.error:
+            logger.error("Transcription error: %s", result.error)
+            return jsonify(error(result.error, "TRANSCRIPTION_FAILED")), 500
+
+        return jsonify(success({
+            "transcript": result.transcript,
+            "language": result.language,
+            "duration_seconds": result.duration_seconds,
+            "model_id": result.model_id,
+            "confidence": result.confidence,
+            "latency_ms": result.latency_ms,
+            "timestamp": result.timestamp,
+            "segments": result.segments,
+        }, "Transcription completed")), 200
+
+    except Exception as exc:
+        logger.exception("Transcription endpoint failed")
+        return jsonify(error(str(exc), "TRANSCRIPTION_ERROR")), 500
+
+
+@interview_bp.route("/submit_voice_answer", methods=["POST"])
+@require_auth
+def submit_voice_answer():
+    """
+    Submit a voice-transcribed answer for evaluation.
+
+    This route accepts the (possibly user-edited) transcript and pushes
+    it through the *same* evaluation pipeline as typed answers.
+    Voice is treated as another input modality — not a separate evaluator.
+    """
+    req, err = _parse_json(SubmitVoiceAnswerRequest)
+    if err:
+        return err
+
+    if not verify_session_ownership(req.session_id, g.user_id):
+        return unauthorized_response("You do not have access to this session.")
+
+    session = _supabase.get_session(req.session_id)
+    if not session or session.get("status") != "active":
+        return jsonify(error("Session not found or not active", "SESSION_INVALID")), 404
+
+    if len(req.transcript) < 10:
+        return jsonify(error("Transcript must be at least 10 characters", "TRANSCRIPT_TOO_SHORT")), 400
+
+    # Feed transcript through the exact same pipeline as typed text answers
+    result = _orchestrator.record_and_evaluate_answer(
+        session_id=req.session_id,
+        question_id=req.question_id,
+        answer_text=req.transcript,
+        is_code=False,
+        transcription_metadata=req.transcription_metadata,
+    )
+
+    # Log the voice-specific metadata for audit / analytics
+    meta = req.transcription_metadata or {}
+    _supabase.log_event(req.session_id, "voice_answer_submitted", {
+        "question_id": req.question_id,
+        "input_modality": "voice",
+        "transcript": req.transcript,
+        "transcription_model": meta.get("model_id"),
+        "language": meta.get("language"),
+        "duration": meta.get("duration_seconds") or meta.get("duration"),
+        "timestamp": meta.get("timestamp"),
+        "confidence": meta.get("confidence"),
+        "latency_ms": meta.get("latency_ms"),
+    })
+
+
+    return jsonify(success({
+        "question_id": req.question_id,
+        "input_modality": "voice",
+        "evaluation": result["evaluation"],
+        "session_score": result["session_score"],
+        "current_difficulty": result["current_difficulty"],
+        "difficulty_adjusted": result["difficulty_adjusted"],
+        "current_phase": result["current_phase"],
+        "is_last_question": result["is_last_question"],
+        "skills_overview": result["skills_overview"],
+        "transcription_metadata": req.transcription_metadata,
+    }, "Voice answer submitted successfully")), 200
 
 
 # ─────────────────────────────────────────────────────────────────

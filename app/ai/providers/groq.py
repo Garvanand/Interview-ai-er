@@ -10,8 +10,13 @@ import re
 import time
 from typing import Any, Dict, Iterator, Optional, Tuple, Type, TypeVar
 
-from groq import Groq
+try:
+    from groq import Groq
+except ImportError:
+    Groq = None
+
 from pydantic import BaseModel
+
 
 from app.ai.providers.base import AIProvider
 
@@ -30,9 +35,10 @@ class GroqProvider(AIProvider):
         if not self.api_key:
             raise ValueError("GROQ_API_KEY environment variable is required")
 
-        self.model_name = model_name or os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
-        self.reasoning_effort = reasoning_effort
+        if Groq is None:
+            raise RuntimeError("The 'groq' package is not installed. Install with: pip install groq")
         self.client = Groq(api_key=self.api_key)
+
 
     def generate_structured(
         self,

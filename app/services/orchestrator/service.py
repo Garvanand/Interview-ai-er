@@ -360,7 +360,8 @@ class InterviewOrchestrator:
         answer_text: str,
         is_code: bool = False,
         language: Optional[str] = None,
-        policy: Optional[SessionPolicy] = None
+        policy: Optional[SessionPolicy] = None,
+        transcription_metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Evaluates candidate submission, updates skill signals, executes
@@ -400,8 +401,14 @@ class InterviewOrchestrator:
             strengths = eval_result.get('strengths', [])
             weaknesses = eval_result.get('weaknesses', [])
             recommended_follow_up = eval_result.get('recommended_follow_up', '')
-            # Store in Supabase
-            self.supabase.store_answer(session_id, question_id, answer_text, eval_result)
+            # Store in Supabase (with transcription metadata if voice modality)
+            self.supabase.store_answer(
+                session_id,
+                question_id,
+                answer_text,
+                eval_result,
+                transcription_metadata=transcription_metadata,
+            )
 
         if q_record:
             q_record.score = float(score)
