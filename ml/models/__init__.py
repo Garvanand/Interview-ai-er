@@ -10,6 +10,8 @@ from .defect_detector import CodeDefectDetector
 from .speech_to_text import VoiceTranscriber
 from .skill_mastery import ItemResponseTheoryMasteryModel
 from .adaptive_selector import AdaptiveQuestionSelector
+from .adaptive_practice import AdaptivePracticeEngine
+from .semantic_retriever import SemanticQuestionRetriever
 from ml.serving.model_registry import MLModelRegistry
 
 __all__ = [
@@ -20,5 +22,7 @@ __all__ = [
     "VoiceTranscriber",
     "ItemResponseTheoryMasteryModel",
     "AdaptiveQuestionSelector",
+    "AdaptivePracticeEngine",
+    "SemanticQuestionRetriever",
     "MLModelRegistry",
 ]

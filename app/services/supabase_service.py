@@ -19,6 +19,8 @@ class SupabaseService:
     _shared_skill_profiles: Dict[str, Dict[str, Any]] = {}
     _shared_question_skills: Dict[str, Dict[str, Any]] = {}
     _shared_inferences: Dict[str, Dict[str, Any]] = {}
+    _shared_candidate_models: Dict[str, Dict[str, Any]] = {}
+    _shared_question_embeddings: Dict[str, Dict[str, Any]] = {}
     _cache_file: str = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
         ".local_storage_cache.json"
@@ -36,6 +38,8 @@ class SupabaseService:
         self._local_skill_profiles = SupabaseService._shared_skill_profiles
         self._local_question_skills = SupabaseService._shared_question_skills
         self._local_inferences = SupabaseService._shared_inferences
+        self._local_candidate_models = SupabaseService._shared_candidate_models
+        self._local_question_embeddings = SupabaseService._shared_question_embeddings
         self._ensure_cache_loaded()
 
     @classmethod
@@ -55,6 +59,8 @@ class SupabaseService:
                     cls._shared_recommendations.update(data.get("recommendations", {}))
                     cls._shared_question_skills.update(data.get("question_skills", {}))
                     cls._shared_inferences.update(data.get("inferences", {}))
+                    cls._shared_candidate_models.update(data.get("candidate_models", {}))
+                    cls._shared_question_embeddings.update(data.get("question_embeddings", {}))
                 logger.info(f"Loaded {len(cls._shared_sessions)} sessions from local storage cache.")
         except Exception as e:
             logger.warning(f"Failed to load local storage cache: {e}")
@@ -71,6 +77,8 @@ class SupabaseService:
                 "recommendations": cls._shared_recommendations,
                 "question_skills": cls._shared_question_skills,
                 "inferences": cls._shared_inferences,
+                "candidate_models": cls._shared_candidate_models,
+                "question_embeddings": cls._shared_question_embeddings,
             }
             tmp_file = cls._cache_file + ".tmp"
             with open(tmp_file, "w", encoding="utf-8") as f:
@@ -102,19 +110,31 @@ class SupabaseService:
         return session_data
 
     def _get_client(self) -> Client:
-        """Lazy initialization of Supabase client"""
+        """Lazy initialization of Supabase client with graceful context fallback."""
         if self.client is None:
             try:
-                supabase_url = current_app.config.get('SUPABASE_URL')
-                supabase_key = current_app.config.get('SUPABASE_KEY')
+                supabase_url = None
+                supabase_key = None
+                try:
+                    if current_app:
+                        supabase_url = current_app.config.get('SUPABASE_URL')
+                        supabase_key = current_app.config.get('SUPABASE_KEY')
+                except RuntimeError:
+                    # Outside Flask application context
+                    pass
+
+                if not supabase_url:
+                    supabase_url = os.environ.get('SUPABASE_URL')
+                if not supabase_key:
+                    supabase_key = os.environ.get('SUPABASE_KEY') or os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
                 
                 if not supabase_url or not supabase_key:
-                    raise ValueError("Missing Supabase configuration")
+                    raise ValueError("Missing Supabase configuration (SUPABASE_URL / SUPABASE_KEY)")
                 
                 self.client = create_client(supabase_url, supabase_key)
                 logger.info("Supabase client initialized successfully")
             except Exception as e:
-                logger.error(f"Failed to initialize Supabase client: {e}")
+                logger.warning(f"Failed to initialize Supabase client: {e}")
                 raise
         return self.client
 
@@ -723,6 +743,32 @@ class SupabaseService:
             logger.warning(f"Failed to get skill profiles remotely: {e}")
         return [p for p in self._local_skill_profiles.values() if p.get('user_id') == user_id]
 
+    def get_candidate_model(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get the full candidate model."""
+        try:
+            client = self._get_client()
+            result = client.table('candidate_models').select('*').eq('user_id', user_id).execute()
+            if result.data:
+                return result.data[0]
+        except Exception as e:
+            pass
+        return self._local_candidate_models.get(user_id)
+        
+    def save_candidate_model(self, user_id: str, model_data: Dict[str, Any]) -> bool:
+        """Save the candidate model."""
+        self._local_candidate_models[user_id] = model_data
+        self._save_cache_to_disk()
+        try:
+            client = self._get_client()
+            existing = self.get_candidate_model(user_id)
+            if existing:
+                client.table('candidate_models').update(model_data).eq('user_id', user_id).execute()
+            else:
+                client.table('candidate_models').insert(model_data).execute()
+            return True
+        except Exception as e:
+            return True
+
     def create_recommendations(self, user_id: str, recommendations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Persist recommendations to Supabase with in-memory fallback"""
         persisted = []
@@ -996,3 +1042,82 @@ class SupabaseService:
                     return q["code_evaluation_history"][0]
                 return q.get("evaluation_details") or q.get("code_evaluation_details")
         return None
+
+    def save_question_embedding(
+        self,
+        question_id: str,
+        embedding_vector: List[float],
+        embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
+        embedding_version: str = "all-minilm-l6-v2",
+        question_text: str = "",
+        skill_focus: str = "",
+        difficulty: str = "",
+    ) -> Dict[str, Any]:
+        """
+        Store a question embedding vector in Supabase/PostgreSQL with local fallback cache.
+        """
+        now_iso = datetime.now(timezone.utc).isoformat()
+        record = {
+            "question_id": question_id,
+            "embedding_model": embedding_model,
+            "embedding_version": embedding_version,
+            "embedding_vector": embedding_vector,
+            "question_text": question_text,
+            "skill_focus": skill_focus,
+            "difficulty": difficulty,
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        }
+        self._local_question_embeddings[question_id] = record
+        self._save_cache_to_disk()
+
+        try:
+            client = self._get_client()
+            res = client.table("question_embeddings").upsert(record, on_conflict="question_id").execute()
+            if res.data:
+                return res.data[0]
+        except Exception as e:
+            logger.debug(f"Failed to persist question embedding remotely: {e}. Stored in local fallback cache.")
+
+        return record
+
+    def get_question_embedding(self, question_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve question embedding metadata and vector for a question."""
+        try:
+            client = self._get_client()
+            res = client.table("question_embeddings").select("*").eq("question_id", question_id).execute()
+            if res.data:
+                return res.data[0]
+        except Exception as e:
+            logger.debug(f"Failed to query question embedding remotely: {e}")
+
+        return self._local_question_embeddings.get(question_id)
+
+    def get_all_question_embeddings(
+        self,
+        embedding_model: Optional[str] = None,
+        embedding_version: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve all stored question embeddings."""
+        try:
+            client = self._get_client()
+            query = client.table("question_embeddings").select("*")
+            if embedding_model:
+                query = query.eq("embedding_model", embedding_model)
+            if embedding_version:
+                query = query.eq("embedding_version", embedding_version)
+            res = query.execute()
+            if res.data and len(res.data) > 0:
+                # Update local cache with remote records
+                for r in res.data:
+                    self._local_question_embeddings[r["question_id"]] = r
+                return res.data
+        except Exception as e:
+            logger.debug(f"Failed to fetch question embeddings remotely: {e}")
+
+        records = list(self._local_question_embeddings.values())
+        if embedding_model:
+            records = [r for r in records if r.get("embedding_model") == embedding_model]
+        if embedding_version:
+            records = [r for r in records if r.get("embedding_version") == embedding_version]
+        return records

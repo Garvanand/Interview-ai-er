@@ -37,6 +37,8 @@ class GroqProvider(AIProvider):
 
         if Groq is None:
             raise RuntimeError("The 'groq' package is not installed. Install with: pip install groq")
+        self.model_name = model_name or "llama-3.3-70b-versatile"
+        self.reasoning_effort = reasoning_effort
         self.client = Groq(api_key=self.api_key)
 
 

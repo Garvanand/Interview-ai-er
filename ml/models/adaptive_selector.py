@@ -464,6 +464,7 @@ class AdaptiveQuestionSelector:
         self._difficulty_predictor = difficulty_predictor
         self._embedding_extractor = embedding_extractor
         self._skill_classifier = skill_classifier
+        self._semantic_retriever = None
         self.catalog = list(catalog or CANONICAL_QUESTION_CATALOG)
 
         # Multi-factor ranking weights (calibrated to sum to 1.0)
@@ -475,6 +476,16 @@ class AdaptiveQuestionSelector:
         }
 
     # ── Lazy model properties ──
+    @property
+    def semantic_retriever(self) -> Any:
+        if self._semantic_retriever is None:
+            from ml.models.semantic_retriever import SemanticQuestionRetriever
+            self._semantic_retriever = SemanticQuestionRetriever(
+                embedding_extractor=self.embedding_extractor,
+                auto_index_catalog=False
+            )
+        return self._semantic_retriever
+
     @property
     def difficulty_predictor(self) -> QuestionDifficultyPredictor:
         if self._difficulty_predictor is None:
@@ -779,7 +790,7 @@ class AdaptiveQuestionSelector:
     ) -> Tuple[float, float, Optional[str]]:
         """
         Evaluate semantic novelty in [0.0, 1.0] by computing dense embedding
-        cosine similarity against previously asked questions.
+        cosine similarity against previously asked questions using SemanticQuestionRetriever.
 
         Returns:
             (novelty, max_similarity, most_similar_text)
@@ -787,28 +798,11 @@ class AdaptiveQuestionSelector:
         if not previous_question_texts:
             return 1.0, 0.0, None
 
-        cand_emb = self.embedding_extractor.encode(candidate_question_text)
-        max_sim = 0.0
-        most_sim_text = None
-
-        for prev_text in previous_question_texts:
-            if not prev_text:
-                continue
-            prev_emb = self.embedding_extractor.encode(prev_text)
-            sim = compute_cosine_similarity(cand_emb, prev_emb)
-
-            # Exact text or subset match guard
-            norm_cand = "".join(filter(str.isalnum, candidate_question_text.lower()))
-            norm_prev = "".join(filter(str.isalnum, prev_text.lower()))
-            if norm_cand == norm_prev or (len(norm_cand) > 30 and norm_cand in norm_prev):
-                sim = 1.0
-
-            if sim > max_sim:
-                max_sim = sim
-                most_sim_text = prev_text
-
-        novelty = round(max(0.0, 1.0 - max_sim), 4)
-        return novelty, round(max_sim, 4), most_sim_text
+        novelty, most_sim, verdict = self.semantic_retriever.check_question_novelty(
+            candidate_question_text, previous_question_texts
+        )
+        max_sim = round(1.0 - novelty, 4)
+        return novelty, max_sim, most_sim
 
     # ─────────────────────────────────────────────────────────────────────────
     # STEP 7: Time Budget Pacing Factor
@@ -1013,8 +1007,11 @@ class AdaptiveQuestionSelector:
                 + w_time * time_factor
             )
 
-            # Severe semantic penalty: if question is essentially a duplicate (>0.85 similarity)
-            if max_sim > 0.85:
+            # Severe semantic penalty: if question is an exact duplicate or near-duplicate
+            from ml.models.semantic_retriever import EXACT_DUPLICATE_THRESHOLD, NEAR_DUPLICATE_THRESHOLD
+            if max_sim >= EXACT_DUPLICATE_THRESHOLD:
+                composite_score *= 0.001
+            elif max_sim >= NEAR_DUPLICATE_THRESHOLD or max_sim > 0.85:
                 composite_score *= 0.10
 
             scored_candidates.append({

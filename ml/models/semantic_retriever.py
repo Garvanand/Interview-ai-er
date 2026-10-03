@@ -1,0 +1,529 @@
+"""
+Semantic Question Retrieval & Deduplication Engine.
+Model: sentence-transformers/all-MiniLM-L6-v2
+Vector Store: PostgreSQL / Supabase question_embeddings table + in-memory vector cache.
+
+Capabilities:
+  1. Corpus indexing with dense 384-dimensional MiniLM embeddings
+  2. Cosine similarity search over question bank
+  3. Exact duplicate detection (threshold >= 0.98)
+  4. Paraphrase / Near-duplicate detection (0.78 <= threshold < 0.98)
+  5. Related-question retrieval (threshold >= 0.50)
+  6. Unrelated question discrimination (threshold < 0.40)
+  7. Skill-aware retrieval (conditioned on target skill pillars)
+  8. Interview engine novelty & deduplication protection
+"""
+from __future__ import annotations
+
+import logging
+import math
+from typing import Any, Dict, List, Optional, Tuple, Union
+import numpy as np
+from pydantic import BaseModel, Field
+
+from ml.features.text_embeddings import TextEmbeddingExtractor, compute_cosine_similarity
+from ml.models.adaptive_selector import CANONICAL_QUESTION_CATALOG, CatalogQuestion
+from ml.models.adaptive_practice import PRACTICE_ADDITIONAL_CATALOG
+
+logger = logging.getLogger(__name__)
+
+# Constants for Model & Versioning
+DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_VERSION = "all-minilm-l6-v2-v1.0"
+EMBEDDING_DIM = 384
+
+# Calibrated Semantic Similarity Thresholds
+EXACT_DUPLICATE_THRESHOLD = 0.98
+NEAR_DUPLICATE_THRESHOLD = 0.78
+RELATED_QUESTION_THRESHOLD = 0.50
+UNRELATED_THRESHOLD = 0.40
+
+
+class ScoredQuestionMatch(BaseModel):
+    """Result of a semantic question similarity lookup."""
+    question_id: str
+    title: str = ""
+    question_text: str
+    skill_focus: str = ""
+    difficulty: str = ""
+    similarity: float
+    classification: str  # "exact_duplicate" | "near_duplicate" | "related" | "unrelated"
+    canonical_skills: List[str] = Field(default_factory=list)
+
+
+class DuplicateDetectionResult(BaseModel):
+    """Duplicate / Near-duplicate assessment for a candidate question."""
+    is_duplicate: bool
+    is_near_duplicate: bool
+    classification: str  # "exact_duplicate" | "near_duplicate" | "related" | "unrelated"
+    max_similarity: float
+    matched_question_id: Optional[str] = None
+    matched_question_text: Optional[str] = None
+    explanation: str
+
+
+class SemanticQuestionRetriever:
+    """
+    Semantic question retrieval using MiniLM embeddings.
+    Integrates with PostgreSQL/Supabase question_embeddings storage.
+    """
+
+    def __init__(
+        self,
+        embedding_extractor: Optional[TextEmbeddingExtractor] = None,
+        supabase_service: Optional[Any] = None,
+        embedding_model: str = DEFAULT_EMBEDDING_MODEL,
+        embedding_version: str = EMBEDDING_VERSION,
+        auto_index_catalog: bool = True,
+    ):
+        self.embedding_model = embedding_model
+        self.embedding_version = embedding_version
+        self._embedding_extractor = embedding_extractor
+        self._supabase = supabase_service
+
+        # In-memory vector store: question_id -> { "vector": np.ndarray, "metadata": dict }
+        self._vector_store: Dict[str, Dict[str, Any]] = {}
+
+        if auto_index_catalog:
+            self.index_canonical_corpus(persist=True)
+
+    # ── Lazy property loaders ──
+    @property
+    def embedding_extractor(self) -> TextEmbeddingExtractor:
+        if self._embedding_extractor is None:
+            self._embedding_extractor = TextEmbeddingExtractor(model_name=self.embedding_model)
+        return self._embedding_extractor
+
+    @property
+    def supabase(self) -> Any:
+        if self._supabase is None:
+            from app.services.supabase_service import SupabaseService
+            self._supabase = SupabaseService()
+        return self._supabase
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Vector Corpus Indexing
+    # ─────────────────────────────────────────────────────────────────────────
+    def index_canonical_corpus(
+        self,
+        custom_catalog: Optional[List[Any]] = None,
+        persist: bool = True
+    ) -> int:
+        """
+        Generate and store embeddings for all questions in the question catalog.
+        Uses PostgreSQL/Supabase table 'question_embeddings' with local fallback.
+        """
+        questions_to_index: List[Dict[str, Any]] = []
+
+        if custom_catalog is not None:
+            for item in custom_catalog:
+                if isinstance(item, CatalogQuestion):
+                    questions_to_index.append({
+                        "question_id": item.id,
+                        "title": item.title,
+                        "question_text": item.question_text,
+                        "skill_focus": item.skill_focus,
+                        "difficulty": item.difficulty,
+                        "canonical_skills": item.canonical_skills,
+                    })
+                elif isinstance(item, dict):
+                    questions_to_index.append(dict(item))
+        else:
+            # Combine canonical selector catalog and practice additional catalog
+            seen_ids = set()
+            for q in CANONICAL_QUESTION_CATALOG:
+                if q.id not in seen_ids:
+                    seen_ids.add(q.id)
+                    questions_to_index.append({
+                        "question_id": q.id,
+                        "title": q.title,
+                        "question_text": q.question_text,
+                        "skill_focus": q.skill_focus,
+                        "difficulty": q.difficulty,
+                        "canonical_skills": q.canonical_skills,
+                    })
+            for q in PRACTICE_ADDITIONAL_CATALOG:
+                if q.id not in seen_ids:
+                    seen_ids.add(q.id)
+                    questions_to_index.append({
+                        "question_id": q.id,
+                        "title": q.title,
+                        "question_text": q.question_text,
+                        "skill_focus": q.skill_focus,
+                        "difficulty": q.difficulty,
+                        "canonical_skills": q.canonical_skills,
+                    })
+
+        indexed_count = 0
+        texts_to_embed = []
+        meta_to_embed = []
+
+        for q in questions_to_index:
+            qid = q.get("question_id") or q.get("id")
+            qtext = q.get("question_text", "")
+            if not qid or not qtext:
+                continue
+
+            # Check if already in vector store
+            if qid in self._vector_store:
+                continue
+
+            texts_to_embed.append(qtext)
+            meta_to_embed.append(q)
+
+        if texts_to_embed:
+            # Batch encode for high efficiency
+            embeddings = self.embedding_extractor.encode(texts_to_embed, normalize=True)
+            if isinstance(embeddings, list):
+                embeddings = np.array(embeddings)
+            elif embeddings.ndim == 1 and len(texts_to_embed) == 1:
+                embeddings = np.expand_dims(embeddings, axis=0)
+
+            for i, q in enumerate(meta_to_embed):
+                qid = q.get("question_id") or q.get("id")
+                vec = embeddings[i]
+                vec_list = [float(x) for x in vec]
+
+                # Store in-memory
+                self._vector_store[qid] = {
+                    "question_id": qid,
+                    "vector": vec,
+                    "title": q.get("title", ""),
+                    "question_text": q.get("question_text", ""),
+                    "skill_focus": q.get("skill_focus", ""),
+                    "difficulty": q.get("difficulty", ""),
+                    "canonical_skills": q.get("canonical_skills", []),
+                    "embedding_model": self.embedding_model,
+                    "embedding_version": self.embedding_version,
+                }
+
+                # Persist to PostgreSQL / Supabase
+                if persist:
+                    try:
+                        self.supabase.save_question_embedding(
+                            question_id=qid,
+                            embedding_vector=vec_list,
+                            embedding_model=self.embedding_model,
+                            embedding_version=self.embedding_version,
+                            question_text=q.get("question_text", ""),
+                            skill_focus=q.get("skill_focus", ""),
+                            difficulty=q.get("difficulty", ""),
+                        )
+                    except Exception as e:
+                        logger.debug("Failed remote question embedding save: %s", e)
+
+                indexed_count += 1
+
+        logger.info("Indexed %d questions into semantic vector store.", indexed_count)
+        return len(self._vector_store)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Vector Embedding Helper
+    # ─────────────────────────────────────────────────────────────────────────
+    def get_embedding(self, text_or_vector: Union[str, np.ndarray, List[float]]) -> np.ndarray:
+        """Resolve a string or array into a normalized 1D numpy vector."""
+        if isinstance(text_or_vector, str):
+            emb = self.embedding_extractor.encode(text_or_vector, normalize=True)
+            return np.array(emb, dtype=np.float32)
+        elif isinstance(text_or_vector, list):
+            v = np.array(text_or_vector, dtype=np.float32)
+            norm = np.linalg.norm(v)
+            return v / norm if norm > 0 else v
+        elif isinstance(text_or_vector, np.ndarray):
+            v = text_or_vector.astype(np.float32)
+            if v.ndim > 1:
+                v = v.flatten()
+            norm = np.linalg.norm(v)
+            return v / norm if norm > 0 else v
+        raise ValueError("Unsupported embedding input type.")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Similarity Search
+    # ─────────────────────────────────────────────────────────────────────────
+    def similarity_search(
+        self,
+        query: Union[str, np.ndarray, List[float]],
+        top_k: int = 5,
+        min_similarity: float = 0.0,
+        skill_focus: Optional[str] = None,
+        target_skills: Optional[List[str]] = None,
+    ) -> List[ScoredQuestionMatch]:
+        """
+        Execute cosine similarity search across indexed question embeddings.
+        Supports filtering by skill focus.
+        """
+        query_vec = self.get_embedding(query)
+        matches: List[ScoredQuestionMatch] = []
+
+        # Target skills filter set
+        filter_skills = set()
+        if skill_focus:
+            filter_skills.add(skill_focus.lower())
+        if target_skills:
+            for s in target_skills:
+                filter_skills.add(s.lower())
+
+        for qid, record in self._vector_store.items():
+            # Apply skill filter if specified
+            if filter_skills:
+                q_skill = (record.get("skill_focus") or "").lower()
+                q_canonical = [c.lower() for c in record.get("canonical_skills", [])]
+                matched_skill = (
+                    any(fs in q_skill or q_skill in fs for fs in filter_skills)
+                    or any(any(fs in c or c in fs for fs in filter_skills) for c in q_canonical)
+                )
+                if not matched_skill:
+                    continue
+
+            sim = compute_cosine_similarity(query_vec, record["vector"])
+
+            if sim < min_similarity:
+                continue
+
+            # Classify relationship
+            if sim >= EXACT_DUPLICATE_THRESHOLD:
+                classification = "exact_duplicate"
+            elif sim >= NEAR_DUPLICATE_THRESHOLD:
+                classification = "near_duplicate"
+            elif sim >= UNRELATED_THRESHOLD:
+                classification = "related"
+            else:
+                classification = "unrelated"
+
+            matches.append(
+                ScoredQuestionMatch(
+                    question_id=qid,
+                    title=record.get("title", ""),
+                    question_text=record.get("question_text", ""),
+                    skill_focus=record.get("skill_focus", ""),
+                    difficulty=record.get("difficulty", ""),
+                    similarity=round(float(sim), 4),
+                    classification=classification,
+                    canonical_skills=record.get("canonical_skills", []),
+                )
+            )
+
+        # Sort descending by cosine similarity
+        matches.sort(key=lambda m: m.similarity, reverse=True)
+        return matches[:top_k]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Duplicate & Near-Duplicate Detection
+    # ─────────────────────────────────────────────────────────────────────────
+    def detect_duplicates(
+        self,
+        query: Union[str, np.ndarray, List[float]],
+        exclude_id: Optional[str] = None
+    ) -> DuplicateDetectionResult:
+        """
+        Determine if the query matches an existing question in the corpus as:
+          - exact duplicate (similarity >= 0.98)
+          - near-duplicate / paraphrase (0.78 <= similarity < 0.98)
+          - related question (0.40 <= similarity < 0.78)
+          - unrelated question (similarity < 0.40)
+        """
+        results = self.similarity_search(query=query, top_k=5, min_similarity=0.0)
+
+        # Filter out self if query matches an existing ID
+        filtered = [m for m in results if m.question_id != exclude_id] if exclude_id else results
+
+        if not filtered:
+            return DuplicateDetectionResult(
+                is_duplicate=False,
+                is_near_duplicate=False,
+                classification="unrelated",
+                max_similarity=0.0,
+                explanation="No existing questions matched the query."
+            )
+
+        top_match = filtered[0]
+        max_sim = top_match.similarity
+
+        # Exact Duplicate check (also check normalized text match)
+        is_exact = max_sim >= EXACT_DUPLICATE_THRESHOLD
+        if isinstance(query, str):
+            norm_q = "".join(filter(str.isalnum, query.lower()))
+            norm_m = "".join(filter(str.isalnum, top_match.question_text.lower()))
+            if norm_q and norm_q == norm_m:
+                is_exact = True
+                max_sim = 1.0
+
+        if is_exact:
+            return DuplicateDetectionResult(
+                is_duplicate=True,
+                is_near_duplicate=True,
+                classification="exact_duplicate",
+                max_similarity=max_sim,
+                matched_question_id=top_match.question_id,
+                matched_question_text=top_match.question_text,
+                explanation=(
+                    f"Exact duplicate detected (similarity: {max_sim:.4f} >= {EXACT_DUPLICATE_THRESHOLD}). "
+                    f"Matches existing question '{top_match.question_id}'."
+                )
+            )
+
+        # Near Duplicate / Paraphrase check
+        if max_sim >= NEAR_DUPLICATE_THRESHOLD:
+            return DuplicateDetectionResult(
+                is_duplicate=False,
+                is_near_duplicate=True,
+                classification="near_duplicate",
+                max_similarity=max_sim,
+                matched_question_id=top_match.question_id,
+                matched_question_text=top_match.question_text,
+                explanation=(
+                    f"Near-duplicate paraphrase detected (similarity: {max_sim:.4f} in "
+                    f"[{NEAR_DUPLICATE_THRESHOLD}, {EXACT_DUPLICATE_THRESHOLD})). "
+                    f"Highly overlapping concept with '{top_match.question_id}'."
+                )
+            )
+
+        # Related or Unrelated check
+        if max_sim >= UNRELATED_THRESHOLD:
+            return DuplicateDetectionResult(
+                is_duplicate=False,
+                is_near_duplicate=False,
+                classification="related",
+                max_similarity=max_sim,
+                matched_question_id=top_match.question_id,
+                matched_question_text=top_match.question_text,
+                explanation=(
+                    f"Related question (similarity: {max_sim:.4f} in "
+                    f"[{UNRELATED_THRESHOLD}, {NEAR_DUPLICATE_THRESHOLD})). Distinct prompt variations."
+                )
+            )
+
+        return DuplicateDetectionResult(
+            is_duplicate=False,
+            is_near_duplicate=False,
+            classification="unrelated",
+            max_similarity=max_sim,
+            matched_question_id=top_match.question_id,
+            matched_question_text=top_match.question_text,
+            explanation=(
+                f"Unrelated question (similarity: {max_sim:.4f} < {UNRELATED_THRESHOLD}). "
+                f"Concepts are distinct."
+            )
+        )
+
+    def is_exact_duplicate(
+        self,
+        query: str,
+        target_question_or_id: str
+    ) -> Tuple[bool, float]:
+        """Check if two specific questions are exact duplicates."""
+        # Check by ID lookup
+        if target_question_or_id in self._vector_store:
+            target_vec = self._vector_store[target_question_or_id]["vector"]
+        else:
+            target_vec = self.get_embedding(target_question_or_id)
+
+        query_vec = self.get_embedding(query)
+        sim = compute_cosine_similarity(query_vec, target_vec)
+
+        # Check identical string
+        norm_q = "".join(filter(str.isalnum, query.lower()))
+        norm_t = "".join(filter(str.isalnum, target_question_or_id.lower()))
+        if norm_q and norm_q == norm_t:
+            return True, 1.0
+
+        return (sim >= EXACT_DUPLICATE_THRESHOLD), round(float(sim), 4)
+
+    def is_near_duplicate(
+        self,
+        query: str,
+        target_question_or_id: str
+    ) -> Tuple[bool, float]:
+        """Check if two specific questions are paraphrased near-duplicates."""
+        if target_question_or_id in self._vector_store:
+            target_vec = self._vector_store[target_question_or_id]["vector"]
+        else:
+            target_vec = self.get_embedding(target_question_or_id)
+
+        query_vec = self.get_embedding(query)
+        sim = compute_cosine_similarity(query_vec, target_vec)
+        is_near = NEAR_DUPLICATE_THRESHOLD <= sim < EXACT_DUPLICATE_THRESHOLD
+        return is_near, round(float(sim), 4)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Related-Question Retrieval
+    # ─────────────────────────────────────────────────────────────────────────
+    def retrieve_related(
+        self,
+        query: str,
+        top_k: int = 5,
+        threshold: float = RELATED_QUESTION_THRESHOLD,
+    ) -> List[ScoredQuestionMatch]:
+        """Retrieve top semantically related questions above threshold."""
+        return self.similarity_search(query=query, top_k=top_k, min_similarity=threshold)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Skill-Aware Retrieval
+    # ─────────────────────────────────────────────────────────────────────────
+    def retrieve_skill_aware(
+        self,
+        query: str,
+        target_skills: Union[str, List[str]],
+        top_k: int = 5,
+        min_similarity: float = 0.30,
+    ) -> List[ScoredQuestionMatch]:
+        """
+        Retrieve semantically similar questions specifically covering target skills.
+        Ensures curriculum-aligned retrieval.
+        """
+        skills_list = [target_skills] if isinstance(target_skills, str) else list(target_skills)
+        return self.similarity_search(
+            query=query,
+            top_k=top_k,
+            min_similarity=min_similarity,
+            target_skills=skills_list,
+        )
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Interview Engine Novelty Protection
+    # ─────────────────────────────────────────────────────────────────────────
+    def check_question_novelty(
+        self,
+        candidate_question_text: str,
+        previous_question_texts: List[str],
+    ) -> Tuple[float, Optional[str], str]:
+        """
+        Evaluate candidate question against previously asked interview questions.
+        Returns:
+            (novelty_score: float in [0.0, 1.0], most_similar_text, verdict)
+        """
+        if not previous_question_texts:
+            return 1.0, None, "First question in session (full novelty)."
+
+        cand_emb = self.get_embedding(candidate_question_text)
+        max_sim = 0.0
+        most_sim_text = None
+
+        for prev_text in previous_question_texts:
+            if not prev_text:
+                continue
+            prev_emb = self.get_embedding(prev_text)
+            sim = compute_cosine_similarity(cand_emb, prev_emb)
+
+            # Check exact string match
+            norm_c = "".join(filter(str.isalnum, candidate_question_text.lower()))
+            norm_p = "".join(filter(str.isalnum, prev_text.lower()))
+            if norm_c == norm_p:
+                sim = 1.0
+
+            if sim > max_sim:
+                max_sim = sim
+                most_sim_text = prev_text
+
+        novelty = round(max(0.0, 1.0 - max_sim), 4)
+
+        if max_sim >= EXACT_DUPLICATE_THRESHOLD:
+            verdict = "REJECT_EXACT_DUPLICATE"
+        elif max_sim >= NEAR_DUPLICATE_THRESHOLD:
+            verdict = "PENALIZE_NEAR_DUPLICATE"
+        elif max_sim >= UNRELATED_THRESHOLD:
+            verdict = "ALLOW_RELATED"
+        else:
+            verdict = "ALLOW_DISTINCT"
+
+        return novelty, most_sim_text, verdict

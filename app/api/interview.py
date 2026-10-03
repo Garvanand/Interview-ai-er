@@ -464,52 +464,89 @@ def get_follow_up_question():
     }, "Follow-up question generated")), 200
 
 
+@interview_bp.route("/practice/sequence", methods=["POST"])
+@require_auth
+def practice_sequence():
+    """Generate an adaptive practice sequence based on candidate state and chosen mode."""
+    data = request.get_json(silent=True) or {}
+    mode = data.get("mode", "weakest_skills")
+    target_role = data.get("target_role", "Software Engineer")
+    num_questions = int(data.get("num_questions", 4))
+
+    # Retrieve candidate model
+    cand_dict = _supabase.get_candidate_model(g.user_id) if hasattr(g, "user_id") and g.user_id else None
+
+    from ml.models.adaptive_practice import AdaptivePracticeEngine
+    engine = AdaptivePracticeEngine()
+    plan = engine.generate_practice_sequence(
+        candidate_data=cand_dict,
+        mode=mode,
+        target_role=target_role,
+        num_questions=num_questions
+    )
+
+    return jsonify(success(plan.model_dump(), "Adaptive practice sequence generated")), 200
+
+
 @interview_bp.route("/practice/coding", methods=["POST"])
 @require_auth
 def practice_coding():
-    """Generate a coding practice question outside of a formal session."""
+    """Generate an adaptive practice question outside of a formal session using AdaptivePracticeEngine."""
     data = request.get_json(silent=True) or {}
-    interview_type = data.get("interview_type", "").strip()
-    if not interview_type:
-        return jsonify(error("interview_type is required", "MISSING_INTERVIEW_TYPE")), 400
-    requested_difficulty = data.get("difficulty", "intermediate")
-    topic = data.get("topic", "coding")
+    interview_type = data.get("interview_type", "Software Engineer").strip()
+    requested_difficulty = data.get("difficulty")
+    topic = data.get("topic")
+    mode = data.get("mode", "weakest_skills")
     
-    question_data = _ai_engine.generate_question("coding", requested_difficulty, topic=topic)
-    question_text = question_data.get("question_text", str(question_data))
-    question_id = str(uuid.uuid4())
-    
+    cand_dict = _supabase.get_candidate_model(g.user_id) if hasattr(g, "user_id") and g.user_id else None
+
+    from ml.models.adaptive_practice import AdaptivePracticeEngine
+    engine = AdaptivePracticeEngine()
+    selected_item = engine.select_next_practice_question(
+        candidate_data=cand_dict,
+        mode=mode,
+        target_role=interview_type,
+        preferred_topic=topic,
+        preferred_difficulty=requested_difficulty
+    )
+
     # ML Difficulty Assessment
     from app.services.question_difficulty_service import QuestionDifficultyService
     ml_diff_service = QuestionDifficultyService()
     if ml_diff_service.is_enabled():
-        ml_result = ml_diff_service.assess_difficulty(question_text)
-        final_difficulty = ml_result.get("predicted_difficulty", requested_difficulty)
+        ml_result = ml_diff_service.assess_difficulty(selected_item.question_text)
+        final_difficulty = ml_result.get("predicted_difficulty", selected_item.difficulty)
         ml_metadata = ml_result
     else:
-        final_difficulty = requested_difficulty
+        final_difficulty = selected_item.difficulty
         ml_metadata = None
 
-    # ML Skill Classification & Persistence (Kept separate from source question metadata)
+    # ML Skill Classification & Persistence
     ml_skills = None
     try:
         from app.services.question_skill_service import QuestionSkillService
         skill_svc = QuestionSkillService(_supabase)
         if skill_svc.is_enabled():
-            ml_skills = skill_svc.predict_and_persist(question_id, question_text)
+            ml_skills = skill_svc.predict_and_persist(selected_item.question_id, selected_item.question_text)
     except Exception as e:
         logger.error(f"Failed to derive and persist ML skills for coding practice: {e}")
         
     return jsonify(success({
-        "question_id": question_id,
-        "question": question_text,
-        "interview_type": interview_type,
+        "question_id": selected_item.question_id,
+        "title": selected_item.title,
+        "question": selected_item.question_text,
+        "interview_type": selected_item.interview_type,
         "difficulty": final_difficulty,
-        "topic": topic,
+        "topic": selected_item.skill_focus,
+        "selection_reason": selected_item.selection_reason,
+        "remediation_objective": selected_item.remediation_objective,
+        "progression_stage": selected_item.progression_stage,
+        "expected_time_minutes": selected_item.expected_time_minutes,
+        "rubric": selected_item.rubric,
         "ml_metadata": ml_metadata,
         "ml_skills": ml_skills,
-        "predicted_skills": ml_skills.get("predicted_skills", []) if ml_skills else []
-    }, "Practice question generated")), 200
+        "predicted_skills": ml_skills.get("predicted_skills", []) if ml_skills else selected_item.canonical_skills
+    }, "Adaptive practice question generated")), 200
 
 
 @interview_bp.route("/practice/evaluate", methods=["POST"])
@@ -519,10 +556,39 @@ def practice_evaluate():
     data = request.get_json(silent=True) or {}
     question = data.get("question", "").strip()
     answer = data.get("answer", "").strip()
+    question_id = data.get("question_id")
+    topic = data.get("topic", "General")
+    difficulty = data.get("difficulty", "intermediate")
+
     if not question or not answer:
         return jsonify(error("question and answer are required", "MISSING_FIELDS")), 400
 
     evaluation = _ai_engine.evaluate_answer(question, answer, {})
+
+    # Record practice attempt in candidate state if authenticated
+    try:
+        user_id = getattr(g, "user_id", None)
+        if user_id:
+            cand_dict = _supabase.get_candidate_model(user_id)
+            if cand_dict:
+                from ml.models.candidate_model import CandidateModel, ObservationEvent
+                cand_model = CandidateModel(**cand_dict)
+                if question_id and question_id not in cand_model.practice_history:
+                    cand_model.practice_history.append(question_id)
+                # Track difficulty exposure
+                if topic not in cand_model.difficulty_exposure:
+                    cand_model.difficulty_exposure[topic] = {}
+                cand_model.difficulty_exposure[topic][difficulty] = cand_model.difficulty_exposure[topic].get(difficulty, 0) + 1
+                
+                score = evaluation.get("score") or evaluation.get("overall_score", 70)
+                if score < 65:
+                    weakness_text = f"Low score ({score:.0f}%) on {difficulty} drill for {topic}"
+                    if weakness_text not in cand_model.weak_skill_signals:
+                        cand_model.weak_skill_signals.append(weakness_text)
+                _supabase.save_candidate_model(user_id, cand_model.model_dump())
+    except Exception as e:
+        logger.error(f"Failed to record practice attempt in candidate model: {e}")
+
     return jsonify(success(evaluation, "Practice answer evaluated")), 200
 
 

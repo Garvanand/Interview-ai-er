@@ -176,6 +176,37 @@ export interface Recommendation {
   outcome_assessment?: 'improved' | 'declined' | 'unchanged' | 'pending'
 }
 
+export interface PracticeSequenceItem {
+  sequence_order: number
+  question_id: string
+  title: string
+  question_text: string
+  interview_type: string
+  target_role: string
+  skill_focus: string
+  difficulty: string
+  expected_time_minutes: number
+  rubric: string
+  canonical_skills: string[]
+  selection_reason: string
+  remediation_objective: string
+  progression_stage: 'foundational_reinforcement' | 'scaffolded_progression' | 'frontier_mastery' | 'spaced_retention' | 'curriculum_breadth' | string
+  model_metrics?: Record<string, any>
+}
+
+export interface PracticePlan {
+  plan_id: string
+  user_id: string
+  mode: 'weakest_skills' | 'role_prep' | string
+  target_role: string
+  target_skills: string[]
+  baseline_skill_estimates: Record<string, number>
+  sequence: PracticeSequenceItem[]
+  total_estimated_minutes: number
+  summary_explanation: string
+  created_at: string
+}
+
 class APIClient {
   private async request<T>(
     endpoint: string,
@@ -383,23 +414,57 @@ class APIClient {
     return this.request(`/user/${userId}/sessions?limit=${limit}`)
   }
 
-  // Practice & Additional Features
-  async generatePracticeQuestion(interviewType: string, difficulty: string = 'intermediate', topic: string = 'coding'): Promise<{ question: string; interview_type: string; difficulty: string; topic: string }> {
+  // Practice & Adaptive Practice Features
+  async generatePracticeSequence(
+    mode: 'weakest_skills' | 'role_prep' = 'weakest_skills',
+    targetRole: string = 'Software Engineer',
+    numQuestions: number = 4
+  ): Promise<PracticePlan> {
+    const res: any = await this.request('/practice/sequence', {
+      method: 'POST',
+      body: JSON.stringify({
+        mode,
+        target_role: targetRole,
+        num_questions: numQuestions,
+      }),
+    })
+    return res?.data ?? res
+  }
+
+  async generatePracticeQuestion(
+    interviewType: string = 'Software Engineer',
+    difficulty?: string,
+    topic?: string,
+    mode: string = 'weakest_skills'
+  ): Promise<any> {
     const res: any = await this.request('/practice/coding', {
       method: 'POST',
       body: JSON.stringify({
         interview_type: interviewType,
         difficulty,
         topic,
+        mode,
       }),
     })
     return res?.data ?? res
   }
 
-  async evaluatePracticeAnswer(question: string, answer: string): Promise<any> {
+  async evaluatePracticeAnswer(
+    question: string,
+    answer: string,
+    questionId?: string,
+    topic?: string,
+    difficulty?: string
+  ): Promise<any> {
     const res: any = await this.request('/practice/evaluate', {
       method: 'POST',
-      body: JSON.stringify({ question, answer }),
+      body: JSON.stringify({
+        question,
+        answer,
+        question_id: questionId,
+        topic,
+        difficulty,
+      }),
     })
     return res?.data ?? res
   }

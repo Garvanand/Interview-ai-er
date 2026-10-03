@@ -2,7 +2,13 @@
 
 import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
-import { apiClient, CandidateSkillProfile, Recommendation } from "@/lib/api-client"
+import {
+  apiClient,
+  CandidateSkillProfile,
+  Recommendation,
+  PracticePlan,
+  PracticeSequenceItem,
+} from "@/lib/api-client"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -23,6 +29,11 @@ import {
   Terminal,
   Clock,
   Compass,
+  Zap,
+  TrendingUp,
+  ShieldCheck,
+  ChevronRight,
+  ListOrdered,
 } from "lucide-react"
 import {
   MLDetectedFocus,
@@ -30,12 +41,10 @@ import {
   MLAdaptiveExplanation,
 } from "@/components/ui/ml-explanation"
 
-const DEFAULT_PRACTICE_TOPICS = [
-  { id: "algorithms", title: "Algorithms & Complexity", focus: "Dynamic Programming, Trees, Binary Search" },
-  { id: "system_design", title: "System Design Tradeoffs", focus: "Partitioning, Raft/Paxos, Caching, CAP" },
-  { id: "concurrency", title: "Concurrency & Multithreading", focus: "Race Conditions, Deadlocks, Mutexes, Async" },
-  { id: "database", title: "Database Systems & SQL", focus: "Indexing, B-Trees, Isolation Levels, Sharding" },
-  { id: "behavioral", title: "Technical Communication", focus: "STAR Framework, Conflict Negotiation, Delivery" },
+const TARGET_ROLES = [
+  { id: "Software Engineer", label: "Software Engineer (Full-Stack / Core)" },
+  { id: "Frontend Engineer", label: "Frontend Engineer (React / Web)" },
+  { id: "Backend Engineer", label: "Backend Engineer (Distributed Systems / DB)" },
 ]
 
 function PracticeContent() {
@@ -43,11 +52,15 @@ function PracticeContent() {
 
   const [skills, setSkills] = useState<CandidateSkillProfile[]>([])
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-  const [selectedTopic, setSelectedTopic] = useState<string>("algorithms")
-  const [difficulty, setDifficulty] = useState<string>("intermediate")
+  const [selectedRole, setSelectedRole] = useState<string>("Software Engineer")
+  const [practiceMode, setPracticeMode] = useState<"weakest_skills" | "role_prep">("weakest_skills")
 
-  // Practice session state
-  const [activeQuestion, setActiveQuestion] = useState<any | null>(null)
+  // Practice sequence state
+  const [practicePlan, setPracticePlan] = useState<PracticePlan | null>(null)
+  const [currentStepIndex, setCurrentStepIndex] = useState<number>(0)
+  const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({})
+
+  // Active question state
   const [userAnswer, setUserAnswer] = useState<string>("")
   const [evaluation, setEvaluation] = useState<any | null>(null)
   const [isGenerating, setIsGenerating] = useState<boolean>(false)
@@ -57,12 +70,15 @@ function PracticeContent() {
   // Restore drill and draft from sessionStorage on mount (browser refresh recovery)
   useEffect(() => {
     try {
-      const saved = sessionStorage.getItem("practice_active_drill")
+      const saved = sessionStorage.getItem("adaptive_practice_plan_state")
       if (saved) {
         const parsed = JSON.parse(saved)
-        if (parsed.question) setActiveQuestion(parsed.question)
-        if (parsed.answer) setUserAnswer(parsed.answer)
+        if (parsed.practicePlan) setPracticePlan(parsed.practicePlan)
+        if (parsed.currentStepIndex !== undefined) setCurrentStepIndex(parsed.currentStepIndex)
+        if (parsed.userAnswer) setUserAnswer(parsed.userAnswer)
         if (parsed.evaluation) setEvaluation(parsed.evaluation)
+        if (parsed.completedSteps) setCompletedSteps(parsed.completedSteps)
+        if (parsed.practiceMode) setPracticeMode(parsed.practiceMode)
       }
     } catch (e) {}
   }, [])
@@ -70,22 +86,23 @@ function PracticeContent() {
   // Persist drill and draft to sessionStorage
   useEffect(() => {
     try {
-      if (activeQuestion) {
+      if (practicePlan) {
         sessionStorage.setItem(
-          "practice_active_drill",
+          "adaptive_practice_plan_state",
           JSON.stringify({
-            question: activeQuestion,
-            answer: userAnswer,
+            practicePlan,
+            currentStepIndex,
+            userAnswer,
             evaluation,
+            completedSteps,
+            practiceMode,
           })
         )
-      } else {
-        sessionStorage.removeItem("practice_active_drill")
       }
     } catch (e) {}
-  }, [activeQuestion, userAnswer, evaluation])
+  }, [practicePlan, currentStepIndex, userAnswer, evaluation, completedSteps, practiceMode])
 
-  // Load skills & recommendations to personalize drills
+  // Load skills & recommendations to personalize practice
   useEffect(() => {
     if (authLoading || !userId) return
     async function loadCandidateProfile() {
@@ -107,37 +124,47 @@ function PracticeContent() {
     loadCandidateProfile()
   }, [authLoading, userId])
 
-  const handleGenerateDrill = async () => {
+  const handleCreateSequence = async (mode: "weakest_skills" | "role_prep", role: string = selectedRole) => {
     setIsGenerating(true)
     setError(null)
-    setActiveQuestion(null)
     setUserAnswer("")
     setEvaluation(null)
+    setPracticeMode(mode)
+    setCurrentStepIndex(0)
+    setCompletedSteps({})
 
     try {
-      const res: any = await apiClient.generatePracticeQuestion("technical", difficulty, selectedTopic)
-      const questionText = res?.question || res?.data?.question || res?.question_text
-      if (questionText) {
-        setActiveQuestion({
-          question_text: questionText,
-          topic: res?.topic || res?.data?.topic || selectedTopic,
-          difficulty: res?.difficulty || res?.data?.difficulty || difficulty,
-        })
+      const plan = await apiClient.generatePracticeSequence(mode, role, 4)
+      if (plan && plan.sequence && plan.sequence.length > 0) {
+        setPracticePlan(plan)
       } else {
-        throw new Error("Unable to generate drill question.")
+        throw new Error("Unable to create practice sequence from candidate profile.")
       }
     } catch (err: any) {
-      setError(err?.message || "Failed to generate targeted practice question.")
+      setError(err?.message || "Failed to generate adaptive practice sequence.")
     } finally {
       setIsGenerating(false)
     }
   }
 
+  const handleSelectStep = (index: number) => {
+    if (!practicePlan || index < 0 || index >= practicePlan.sequence.length) return
+    setCurrentStepIndex(index)
+    setUserAnswer("")
+    setEvaluation(null)
+    setError(null)
+  }
+
+  const activeItem: PracticeSequenceItem | null =
+    practicePlan && practicePlan.sequence && practicePlan.sequence[currentStepIndex]
+      ? practicePlan.sequence[currentStepIndex]
+      : null
+
   const handleSubmitAnswer = async () => {
-    if (!activeQuestion || !userAnswer.trim()) return
+    if (!activeItem || !userAnswer.trim()) return
 
     if (userAnswer.trim().length < 10) {
-      setError("Please provide a more detailed answer (minimum 10 characters) for assessment.")
+      setError("Please provide a more detailed technical explanation (minimum 10 characters) for assessment.")
       return
     }
 
@@ -146,8 +173,14 @@ function PracticeContent() {
 
     try {
       const [evalRes, followUpRes] = await Promise.allSettled([
-        apiClient.evaluatePracticeAnswer(activeQuestion.question_text, userAnswer),
-        apiClient.getFollowUpQuestion(activeQuestion.question_text, userAnswer, "technical"),
+        apiClient.evaluatePracticeAnswer(
+          activeItem.question_text,
+          userAnswer,
+          activeItem.question_id,
+          activeItem.skill_focus,
+          activeItem.difficulty
+        ),
+        apiClient.getFollowUpQuestion(activeItem.question_text, userAnswer, activeItem.interview_type),
       ])
 
       const evalData = evalRes.status === "fulfilled" ? evalRes.value : null
@@ -170,6 +203,9 @@ function PracticeContent() {
         },
         follow_up: followUpData?.follow_up_question || (followUpData as any)?.data?.follow_up_question || null,
       })
+
+      // Mark current step completed
+      setCompletedSteps((prev) => ({ ...prev, [currentStepIndex]: true }))
     } catch (err: any) {
       setError(err?.message || "Evaluation failed. Please verify your connection and try again.")
     } finally {
@@ -195,15 +231,15 @@ function PracticeContent() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-200 dark:border-slate-800 gap-4">
         <div>
-          <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono text-slate-600 dark:text-slate-400 mb-2">
-            <Target className="h-3 w-3" />
-            <span>ADAPTIVE DRILL ENGINE</span>
+          <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-[10px] font-mono text-blue-700 dark:text-blue-300 mb-2 border border-blue-200 dark:border-blue-900">
+            <Sparkles className="h-3 w-3" />
+            <span>ADAPTIVE PRACTICE ENGINE</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Targeted Skill Practice
+            Adaptive Skill Practice & Curriculum
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Reinforce specific competency gaps identified by your interview evaluations with targeted drill questions.
+            Personalized practice sequences powered by candidate skill profiles, difficulty progression, and spaced repetition.
           </p>
         </div>
 
@@ -216,110 +252,218 @@ function PracticeContent() {
         </div>
       </div>
 
-      {/* Recommended Weakness Alerts from Real Intelligence */}
-      {recommendedWeaknesses.length > 0 && (
-        <div className="mt-6 p-4 rounded-lg border border-amber-300 dark:border-amber-800/80 bg-amber-50/50 dark:bg-amber-950/20 text-xs font-mono space-y-2">
-          <div className="flex items-center text-amber-800 dark:text-amber-300 font-semibold">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            IDENTIFIED SKILL REMEDIATION PRIORITIES
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-700 dark:text-slate-300">
-            {recommendedWeaknesses.slice(0, 2).map((rec) => (
-              <div
-                key={rec.id}
-                className="p-2.5 rounded border border-amber-200 dark:border-amber-900/40 bg-white/80 dark:bg-[#0d121f] flex justify-between items-center"
-              >
-                <div>
-                  <span className="font-bold text-amber-700 dark:text-amber-400">[{rec.target_skill}]</span>{" "}
-                  <span className="text-[11px] text-slate-500">{rec.reason}</span>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setSelectedTopic(rec.target_skill.toLowerCase())
-                    handleGenerateDrill()
-                  }}
-                  className="h-6 text-[10px] font-mono px-2"
-                >
-                  Drill →
-                </Button>
+      {/* Two Primary Mode Selectors */}
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Mode 1: Practice my weakest skills */}
+        <div
+          onClick={() => handleCreateSequence("weakest_skills")}
+          className={`cursor-pointer p-5 rounded-xl border transition-all relative overflow-hidden group ${
+            practiceMode === "weakest_skills" && practicePlan
+              ? "border-amber-500 bg-amber-50/20 dark:bg-amber-950/20 shadow-sm"
+              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] hover:border-amber-400 dark:hover:border-amber-700"
+          }`}
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <Target className="h-5 w-5" />
               </div>
-            ))}
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  Practice my weakest skills
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Adaptive weakness reinforcement, recent error remediation & spaced review
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex flex-wrap gap-1.5">
+              {recommendedWeaknesses.length > 0 ? (
+                recommendedWeaknesses.slice(0, 2).map((r) => (
+                  <span
+                    key={r.id}
+                    className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300"
+                  >
+                    {r.target_skill}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[11px] font-mono text-slate-400">
+                  Auto-targets lowest mastery signals
+                </span>
+              )}
+            </div>
+
+            <Button
+              size="sm"
+              disabled={isGenerating}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleCreateSequence("weakest_skills")
+              }}
+              className="h-8 text-xs font-mono bg-amber-600 hover:bg-amber-500 text-white font-semibold"
+            >
+              {isGenerating && practiceMode === "weakest_skills" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <span className="flex items-center space-x-1">
+                  <span>Generate Sequence</span>
+                  <ArrowRight className="h-3 w-3 ml-1" />
+                </span>
+              )}
+            </Button>
           </div>
         </div>
-      )}
+
+        {/* Mode 2: Prepare me for Software Engineer interviews */}
+        <div
+          onClick={() => handleCreateSequence("role_prep")}
+          className={`cursor-pointer p-5 rounded-xl border transition-all relative overflow-hidden group ${
+            practiceMode === "role_prep" && practicePlan
+              ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20 shadow-sm"
+              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] hover:border-blue-400 dark:hover:border-blue-700"
+          }`}
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                <Compass className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  Prepare me for {selectedRole} interviews
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Full curriculum ladder: DSA, System Architecture & Communication
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <select
+              value={selectedRole}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                setSelectedRole(e.target.value)
+              }}
+              className="text-[11px] font-mono rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 py-1 px-2 text-slate-700 dark:text-slate-300"
+            >
+              {TARGET_ROLES.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+
+            <Button
+              size="sm"
+              disabled={isGenerating}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleCreateSequence("role_prep", selectedRole)
+              }}
+              className="h-8 text-xs font-mono bg-blue-600 hover:bg-blue-500 text-white font-semibold"
+            >
+              {isGenerating && practiceMode === "role_prep" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <span className="flex items-center space-x-1">
+                  <span>Generate Curriculum</span>
+                  <ArrowRight className="h-3 w-3 ml-1" />
+                </span>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {/* Main Practice Workspace Grid */}
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Topic & Calibration Controls */}
-        <div className="lg:col-span-4 space-y-6">
-          <div>
-            <label className="block text-xs font-mono text-slate-500 uppercase tracking-wider mb-2.5">
-              Select Practice Topic
+        {/* Left Column: Adaptive Practice Sequence Roadmap */}
+        <div className="lg:col-span-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-mono text-slate-500 uppercase tracking-wider">
+              Practice Sequence ({practicePlan?.sequence.length || 0} Steps)
             </label>
-            <div className="space-y-2">
-              {DEFAULT_PRACTICE_TOPICS.map((topic) => {
-                const isSelected = selectedTopic === topic.id
+            {practicePlan && (
+              <span className="text-[10px] font-mono text-slate-400">
+                ~{practicePlan.total_estimated_minutes} mins total
+              </span>
+            )}
+          </div>
+
+          {practicePlan ? (
+            <div className="space-y-2.5">
+              {practicePlan.sequence.map((item, idx) => {
+                const isActive = idx === currentStepIndex
+                const isCompleted = completedSteps[idx]
+
                 return (
-                  <button
-                    key={topic.id}
-                    onClick={() => setSelectedTopic(topic.id)}
-                    className={`w-full p-3 rounded-lg border text-left transition-all ${
-                      isSelected
-                        ? "border-blue-600 bg-blue-50/30 dark:bg-blue-950/20 shadow-xs"
+                  <div
+                    key={item.question_id + idx}
+                    onClick={() => handleSelectStep(idx)}
+                    className={`cursor-pointer p-3 rounded-lg border text-left transition-all ${
+                      isActive
+                        ? "border-blue-600 bg-blue-50/40 dark:bg-blue-950/30 shadow-xs"
                         : "border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] hover:border-slate-300 dark:hover:border-slate-700"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{topic.title}</span>
-                      {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
+                      <div className="flex items-center space-x-2">
+                        <span
+                          className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono font-bold ${
+                            isCompleted
+                              ? "bg-emerald-500 text-white"
+                              : isActive
+                              ? "bg-blue-600 text-white"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                          }`}
+                        >
+                          {isCompleted ? "✓" : idx + 1}
+                        </span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-1">
+                          {item.title}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded ${
+                          item.difficulty === "advanced"
+                            ? "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300"
+                            : item.difficulty === "intermediate"
+                            ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
+                            : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
+                        }`}
+                      >
+                        {item.difficulty}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{topic.focus}</div>
-                  </button>
+
+                    <div className="mt-1.5 flex items-center justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                      <span>{item.skill_focus}</span>
+                      <span className="text-[10px] text-slate-400">{item.expected_time_minutes}m</span>
+                    </div>
+                  </div>
                 )
               })}
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-mono text-slate-500 uppercase tracking-wider mb-2">
-              Difficulty Tier
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {["beginner", "intermediate", "advanced"].map((lvl) => (
-                <button
-                  key={lvl}
-                  onClick={() => setDifficulty(lvl)}
-                  className={`py-1.5 px-2 rounded text-xs font-mono uppercase transition-colors ${
-                    difficulty === lvl
-                      ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold"
-                      : "border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] text-slate-600 dark:text-slate-400"
-                  }`}
-                >
-                  {lvl}
-                </button>
-              ))}
+          ) : (
+            <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-[#0d121f]/50 p-6 text-center text-xs font-mono text-slate-500">
+              Select one of the practice modes above to generate your tailored practice sequence.
             </div>
-          </div>
+          )}
 
-          <Button
-            onClick={handleGenerateDrill}
-            disabled={isGenerating}
-            className="w-full h-10 text-xs font-mono bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 font-semibold rounded"
-          >
-            {isGenerating ? (
-              <span className="flex items-center space-x-2">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>GENERATING QUESTION...</span>
+          {practicePlan?.summary_explanation && (
+            <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-[11px] font-mono text-slate-600 dark:text-slate-400 leading-relaxed">
+              <span className="font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                ENGINE CURRICULUM SUMMARY:
               </span>
-            ) : (
-              <span className="flex items-center justify-center space-x-2">
-                <Play className="h-3.5 w-3.5" />
-                <span>GENERATE DRILL QUESTION</span>
-              </span>
-            )}
-          </Button>
+              {practicePlan.summary_explanation}
+            </div>
+          )}
         </div>
 
         {/* Right Column: Live Drill & Evaluation View */}
@@ -330,25 +474,47 @@ function PracticeContent() {
             </div>
           )}
 
-          {activeQuestion ? (
+          {activeItem ? (
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] p-6 space-y-5">
-              {/* Question Header */}
+              {/* Question Header & Stage */}
               <div>
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <MLDetectedFocus skill={activeQuestion.topic || "Algorithmic Reasoning"} />
-                  <span className="text-[10px] font-mono uppercase text-slate-400">
-                    Tier: {activeQuestion.difficulty}
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center space-x-2">
+                    <MLDetectedFocus skill={activeItem.skill_focus} />
+                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                      Step {currentStepIndex + 1} of {practicePlan?.sequence.length || 1}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono uppercase font-bold text-slate-500">
+                    Tier: {activeItem.difficulty}
                   </span>
                 </div>
+
                 <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-snug">
-                  {activeQuestion.question_text}
+                  {activeItem.question_text}
                 </h3>
+              </div>
+
+              {/* Explainable Selection Reason Callout */}
+              <div className="p-3.5 rounded-lg border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20 text-xs leading-relaxed space-y-1">
+                <div className="flex items-center text-[10px] font-mono font-bold text-blue-700 dark:text-blue-300">
+                  <Brain className="h-3.5 w-3.5 mr-1.5 text-blue-600" />
+                  WHY THIS QUESTION WAS SELECTED
+                </div>
+                <p className="text-slate-700 dark:text-slate-300 font-mono text-[11px]">
+                  {activeItem.selection_reason}
+                </p>
+                {activeItem.remediation_objective && (
+                  <p className="text-[10px] font-mono text-blue-600 dark:text-blue-400 pt-0.5">
+                    Objective: {activeItem.remediation_objective}
+                  </p>
+                )}
               </div>
 
               {/* Response Input */}
               <div className="space-y-2">
                 <label className="block text-xs font-mono text-slate-500 uppercase">
-                  Your Technical Formulation
+                  Your Technical Formulation & Implementation
                 </label>
                 <Textarea
                   value={userAnswer}
@@ -359,52 +525,40 @@ function PracticeContent() {
                       handleSubmitAnswer()
                     }
                   }}
-                  placeholder="Outline your approach, time/space complexity, and architecture tradeoffs... (Press Ctrl+Enter to submit)"
+                  placeholder="Outline your algorithm approach, time/space complexity tradeoffs, and code solution... (Press Ctrl+Enter to submit)"
                   rows={8}
                   className="text-xs font-mono rounded border-slate-200 dark:border-slate-800 leading-relaxed focus-visible:ring-1 focus-visible:ring-blue-500"
                 />
                 <div className="flex justify-between items-center text-[11px] font-mono text-slate-500">
-                  <span>Press Ctrl+Enter to submit</span>
-                  <span>{userAnswer.trim().length} chars • {userAnswer.trim().split(/\s+/).filter(Boolean).length} words</span>
+                  <span>Press Ctrl+Enter to submit response</span>
+                  <span>
+                    {userAnswer.trim().length} chars • {userAnswer.trim().split(/\s+/).filter(Boolean).length} words
+                  </span>
                 </div>
               </div>
 
-              {/* Error Callout with Retry */}
-              {error && (
-                <div className="rounded border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 p-3 text-xs font-mono text-rose-700 dark:text-rose-300 flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" />
-                    <span>{error}</span>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleSubmitAnswer}
-                    disabled={isEvaluating}
-                    className="h-6 text-[10px] text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40"
-                  >
-                    Retry
-                  </Button>
-                </div>
-              )}
-
+              {/* Navigation & Submission Controls */}
               <div className="flex justify-between items-center pt-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleGenerateDrill}
-                  disabled={isGenerating || isEvaluating}
+                  onClick={() => {
+                    if (practicePlan && currentStepIndex < practicePlan.sequence.length - 1) {
+                      handleSelectStep(currentStepIndex + 1)
+                    }
+                  }}
+                  disabled={!practicePlan || currentStepIndex >= practicePlan.sequence.length - 1 || isEvaluating}
                   className="text-xs font-mono"
                 >
                   <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                  Skip / Next Drill
+                  Skip to Next Step
                 </Button>
 
                 <Button
                   size="sm"
                   onClick={handleSubmitAnswer}
                   disabled={isEvaluating || !userAnswer.trim()}
-                  className="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900"
+                  className="text-xs font-mono bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold"
                 >
                   {isEvaluating ? (
                     <span className="flex items-center space-x-1.5">
@@ -434,23 +588,31 @@ function PracticeContent() {
                   />
 
                   {/* Dimension Cards */}
-                  {evaluation.dimensions && evaluation.dimensions.accuracy && (
+                  {evaluation.dimensions && evaluation.dimensions.accuracy !== undefined && (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
                         <span className="text-[10px] text-slate-500 uppercase block">Accuracy</span>
-                        <span className="font-bold text-slate-900 dark:text-slate-100">{evaluation.dimensions.accuracy}%</span>
+                        <span className="font-bold text-slate-900 dark:text-slate-100">
+                          {evaluation.dimensions.accuracy}%
+                        </span>
                       </div>
                       <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
                         <span className="text-[10px] text-slate-500 uppercase block">Depth</span>
-                        <span className="font-bold text-slate-900 dark:text-slate-100">{evaluation.dimensions.depth}%</span>
+                        <span className="font-bold text-slate-900 dark:text-slate-100">
+                          {evaluation.dimensions.depth}%
+                        </span>
                       </div>
                       <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
                         <span className="text-[10px] text-slate-500 uppercase block">Logic</span>
-                        <span className="font-bold text-slate-900 dark:text-slate-100">{evaluation.dimensions.problemSolving}%</span>
+                        <span className="font-bold text-slate-900 dark:text-slate-100">
+                          {evaluation.dimensions.problemSolving}%
+                        </span>
                       </div>
                       <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
                         <span className="text-[10px] text-slate-500 uppercase block">Clarity</span>
-                        <span className="font-bold text-slate-900 dark:text-slate-100">{evaluation.dimensions.communication}%</span>
+                        <span className="font-bold text-slate-900 dark:text-slate-100">
+                          {evaluation.dimensions.communication}%
+                        </span>
                       </div>
                     </div>
                   )}
@@ -460,11 +622,14 @@ function PracticeContent() {
                   </p>
 
                   {/* Strengths & Weaknesses */}
-                  {((evaluation.strengths && evaluation.strengths.length > 0) || (evaluation.weaknesses && evaluation.weaknesses.length > 0)) && (
+                  {((evaluation.strengths && evaluation.strengths.length > 0) ||
+                    (evaluation.weaknesses && evaluation.weaknesses.length > 0)) && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                       {evaluation.strengths && evaluation.strengths.length > 0 && (
                         <div className="p-2.5 rounded bg-emerald-50/20 dark:bg-emerald-950/10 border border-emerald-200 dark:border-emerald-900/40">
-                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mb-1">STRENGTHS</span>
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mb-1">
+                            STRENGTHS
+                          </span>
                           <ul className="space-y-1 text-slate-700 dark:text-slate-300">
                             {evaluation.strengths.map((str: string, i: number) => (
                               <li key={i} className="flex items-start gap-1.5 font-sans text-xs">
@@ -477,7 +642,9 @@ function PracticeContent() {
                       )}
                       {evaluation.weaknesses && evaluation.weaknesses.length > 0 && (
                         <div className="p-2.5 rounded bg-amber-50/20 dark:bg-amber-950/10 border border-amber-200 dark:border-amber-900/40">
-                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mb-1">REMEDIATION TARGETS</span>
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mb-1">
+                            REMEDIATION TARGETS
+                          </span>
                           <ul className="space-y-1 text-slate-700 dark:text-slate-300">
                             {evaluation.weaknesses.map((w: string, i: number) => (
                               <li key={i} className="flex items-start gap-1.5 font-sans text-xs">
@@ -499,6 +666,19 @@ function PracticeContent() {
                       {evaluation.follow_up}
                     </div>
                   )}
+
+                  {/* Advance to next step CTA */}
+                  {practicePlan && currentStepIndex < practicePlan.sequence.length - 1 && (
+                    <div className="pt-2 flex justify-end">
+                      <Button
+                        size="sm"
+                        onClick={() => handleSelectStep(currentStepIndex + 1)}
+                        className="text-xs font-mono bg-blue-600 hover:bg-blue-500 text-white font-semibold"
+                      >
+                        Advance to Step {currentStepIndex + 2} →
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -506,19 +686,29 @@ function PracticeContent() {
             <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-[#0d121f]/50 p-12 text-center">
               <BookOpen className="h-8 w-8 text-slate-400 mx-auto mb-3" />
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                Ready to Initiate Targeted Practice
+                Ready to Initiate Adaptive Practice
               </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto mb-4">
-                Select a topic from the left or choose one of your identified skill gaps, then click Generate to begin.
+                Choose <span className="font-semibold text-slate-700 dark:text-slate-300">&quot;Practice my weakest skills&quot;</span> or <span className="font-semibold text-slate-700 dark:text-slate-300">&quot;Prepare me for Software Engineer interviews&quot;</span> above to generate an evidence-based sequence.
               </p>
-              <Button
-                size="sm"
-                onClick={handleGenerateDrill}
-                disabled={isGenerating}
-                className="text-xs font-mono bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900"
-              >
-                Start Drill Now
-              </Button>
+              <div className="flex justify-center gap-3">
+                <Button
+                  size="sm"
+                  onClick={() => handleCreateSequence("weakest_skills")}
+                  disabled={isGenerating}
+                  className="text-xs font-mono bg-amber-600 hover:bg-amber-500 text-white"
+                >
+                  Practice Weakest Skills
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleCreateSequence("role_prep")}
+                  disabled={isGenerating}
+                  className="text-xs font-mono bg-blue-600 hover:bg-blue-500 text-white"
+                >
+                  Prepare for Role
+                </Button>
+              </div>
             </div>
           )}
         </div>

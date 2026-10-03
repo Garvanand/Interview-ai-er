@@ -19,6 +19,7 @@ from .skills import get_skills_for_role
 from .intelligence import CandidateSkillProfile, SkillEvidence, SkillEvidenceAggregator
 from .recommendations import RecommendationEngine
 from ml.models.adaptive_selector import AdaptiveQuestionSelector, MODEL_VERSIONS
+from ml.models.candidate_model import CandidateModel
 
 logger = logging.getLogger(__name__)
 
@@ -638,6 +639,19 @@ class InterviewOrchestrator:
             final_recommendations = persisted
         except Exception as e:
             logger.warning(f"Recommendation generation during interview finalization skipped: {e}")
+
+        # Evolve personalized candidate model
+        try:
+            cand_data = self.supabase.get_candidate_model(state.user_id)
+            if cand_data:
+                cand_model = CandidateModel(**cand_data)
+            else:
+                cand_model = CandidateModel(user_id=state.user_id, target_role=state.target_role)
+            
+            cand_model.evolve_from_session(state)
+            self.supabase.save_candidate_model(state.user_id, cand_model.model_dump())
+        except Exception as e:
+            logger.warning(f"Candidate model evolution failed: {e}")
 
         return {
             'session_id': session_id,
