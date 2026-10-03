@@ -10,7 +10,7 @@ from .defect_detector import CodeDefectDetector
 from .speech_to_text import VoiceTranscriber
 from .skill_mastery import ItemResponseTheoryMasteryModel
 from .adaptive_selector import AdaptiveQuestionSelector
-from .registry import MLModelRegistry
+from ml.serving.model_registry import MLModelRegistry
 
 __all__ = [
     "QuestionDifficultyPredictor",

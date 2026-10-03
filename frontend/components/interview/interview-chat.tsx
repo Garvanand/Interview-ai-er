@@ -49,7 +49,7 @@ export function InterviewChat({ sessionId, questionId, onHintRequest, onClarific
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [chatMode, setChatMode] = useState<'general' | 'hint' | 'clarification'>('general')
+  const [chatMode, setChatMode] = useState<'general' | 'hint' | 'clarification' | 'followup'>('general')
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)

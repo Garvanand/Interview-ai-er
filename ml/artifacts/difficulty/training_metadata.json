@@ -1,0 +1,148 @@
+{
+  "run_id": "question-difficulty-v1_20261003T063825Z",
+  "model": {
+    "name": "question-difficulty-v1",
+    "task": "multiclass_classification",
+    "version": "1.1.0",
+    "base": "TF-IDF + LogisticRegression"
+  },
+  "dataset": {
+    "identifier": "BAAI/TACO + codeparrot/apps",
+    "version": "2026.10",
+    "hash": "8c5f4fc319f43345"
+  },
+  "preprocessing_version": "1.0.0",
+  "random_seed": 42,
+  "hyperparameters": {
+    "classical": {
+      "vectorizer": {
+        "max_features": 5000,
+        "ngram_range": [
+          1,
+          2
+        ],
+        "stop_words": "english",
+        "sublinear_tf": true
+      },
+      "classifier": {
+        "C": 1.0,
+        "max_iter": 1000,
+        "class_weight": "balanced",
+        "solver": "lbfgs",
+        "multi_class": "multinomial"
+      }
+    },
+    "embedding": {
+      "classifier": {
+        "C": 2.0,
+        "max_iter": 1000,
+        "class_weight": "balanced",
+        "solver": "lbfgs",
+        "multi_class": "multinomial"
+      }
+    }
+  },
+  "split_sizes": {
+    "train": 1050,
+    "val": 150,
+    "test": 300
+  },
+  "training_duration_seconds": 18.32,
+  "started_at": "2026-10-03T06:38:07.007870+00:00",
+  "finished_at": "2026-10-03T06:38:25.325604+00:00",
+  "validation_metrics": {
+    "accuracy": 0.5533,
+    "macro_f1": 0.5465,
+    "weighted_f1": 0.5422,
+    "macro_precision": 0.5489,
+    "macro_recall": 0.5612,
+    "per_class": {
+      "beginner": {
+        "precision": 0.5385,
+        "recall": 0.3962,
+        "f1": 0.4565,
+        "support": 53
+      },
+      "intermediate": {
+        "precision": 0.5208,
+        "recall": 0.5,
+        "f1": 0.5102,
+        "support": 50
+      },
+      "advanced": {
+        "precision": 0.5873,
+        "recall": 0.7872,
+        "f1": 0.6727,
+        "support": 47
+      }
+    },
+    "confusion_matrix": [
+      [
+        21,
+        18,
+        14
+      ],
+      [
+        13,
+        25,
+        12
+      ],
+      [
+        5,
+        5,
+        37
+      ]
+    ]
+  },
+  "test_metrics": {
+    "accuracy": 0.6567,
+    "macro_f1": 0.6558,
+    "weighted_f1": 0.6555,
+    "macro_precision": 0.6664,
+    "macro_recall": 0.6598,
+    "per_class": {
+      "beginner": {
+        "precision": 0.7294,
+        "recall": 0.5905,
+        "f1": 0.6526,
+        "support": 105
+      },
+      "intermediate": {
+        "precision": 0.6778,
+        "recall": 0.61,
+        "f1": 0.6421,
+        "support": 100
+      },
+      "advanced": {
+        "precision": 0.592,
+        "recall": 0.7789,
+        "f1": 0.6727,
+        "support": 95
+      }
+    },
+    "confusion_matrix": [
+      [
+        62,
+        17,
+        26
+      ],
+      [
+        14,
+        61,
+        25
+      ],
+      [
+        9,
+        12,
+        74
+      ]
+    ]
+  },
+  "artifact_path": "ml\\artifacts\\difficulty\\difficulty_model.joblib",
+  "artifact_hash": "12ef38983aa092caf9c187a70ef40c17ca197f93f4a439e1556d905dfcbf9843",
+  "environment": {
+    "python_version": "3.12.0",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "hostname": "Harry-Putter"
+  }
+}

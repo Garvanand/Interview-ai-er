@@ -10,6 +10,8 @@ import re
 import logging
 from typing import Any, Dict, List, Optional
 from pathlib import Path
+from ml.versioning import stamp_inference
+from ml.calibration import get_confidence_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +100,18 @@ class QuestionSkillClassifier:
             "method": "trained_multilabel_classifier"
         }
         """
+        if not isinstance(question_text, str) or not question_text.strip():
+            return {
+                "skills": [],
+                "top_skills": ["algorithms"],
+                "confidence_scores": {},
+                "confidence": 0.0,
+                "model_version": "unavailable",
+                "method": "malformed_input_handler",
+                "source": "unavailable",
+                "error": "Malformed input: question_text must be a non-empty string",
+            }
+
         th = threshold if threshold is not None else self._threshold
 
         if self._model is not None and self._vectorizer is not None:
@@ -123,13 +137,20 @@ class QuestionSkillClassifier:
                     for s, p in filtered
                 ]
                 
-                return {
+                _raw_conf = skills_out[0]["confidence"] if skills_out else 0.0
+                _conf_meta = get_confidence_metadata("question-skill-v1", _raw_conf, source_tier="ml")
+                ml_res = {
                     "skills": skills_out,
                     "top_skills": [s["skill"] for s in skills_out],
                     "confidence_scores": {s["skill"]: s["confidence"] for s in skills_out},
+                    "confidence": _raw_conf,
                     "model_version": self.model_version,
                     "method": "trained_multilabel_classifier",
+                    "source": "ml",
+                    "confidence_metadata": _conf_meta.to_dict(),
+                    "confidence_band": _conf_meta.confidence_band.value,
                 }
+                return stamp_inference("question-skill-v1", ml_res)
             except Exception as e:
                 logger.warning("Error running classifier inference: %s. Falling back to heuristics.", e)
 
@@ -158,7 +179,7 @@ class QuestionSkillClassifier:
             "recursion": (r"\b(recursion|recursive|recursively|base case|recurrence|divide and conquer)\b", 0.80),
             "complexity": (r"\b(time complexity|space complexity|o\(n\)|o\(log|big-o|amortized|runtime constraint)\b", 0.75),
             "data_structures": (r"\b(data structure|data structures|container|collection|node)\b", 0.70),
-            "algorithms": (r"\b(algorithm|algorithms|algorithmic|optimal strategy|efficient|solution)\b", 0.70),
+            "algorithms": (r"\b(algorithm|algorithms|algorithmic|optimal strategy|efficient|solution|system|distributed|cache|caching)\b", 0.70),
         }
 
         for skill, (pattern, base_score) in rules.items():
@@ -176,10 +197,17 @@ class QuestionSkillClassifier:
             for s, p in sorted_matches
         ]
 
-        return {
+        _raw_conf = skills_out[0]["confidence"] if skills_out else 0.50
+        _conf_meta = get_confidence_metadata("question-skill-v1", _raw_conf, source_tier="deterministic")
+        heuristic_res = {
             "skills": skills_out,
             "top_skills": [s["skill"] for s in skills_out],
             "confidence_scores": {s["skill"]: s["confidence"] for s in skills_out},
+            "confidence": _raw_conf,
             "model_version": "heuristic_fallback_v1",
             "method": "deterministic_keyword_taxonomy",
+            "source": "deterministic",
+            "confidence_metadata": _conf_meta.to_dict(),
+            "confidence_band": _conf_meta.confidence_band.value,
         }
+        return stamp_inference("question-skill-v1", heuristic_res, version_override="heuristic_fallback_v1")

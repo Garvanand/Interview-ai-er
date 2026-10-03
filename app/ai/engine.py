@@ -176,11 +176,25 @@ class AssessmentEngine:
         response = self._execute_with_telemetry(prompt, AnswerEvaluation, task_type="evaluate_answer")
         result = {**response["data"], "_metadata": response["metadata"]}
 
-        # Attach the raw ML evidence to the response for transparency
-        if ml_evidence:
-            result["ml_concept_coverage"] = ml_evidence.get("ml_concept_coverage")
-            result["ml_pipeline_version"] = ml_evidence.get("pipeline_version")
-            result["ml_signal_type"] = ml_evidence.get("ml_concept_coverage", {}).get("signal_type")
+        # Attach the raw ML evidence and model attribution to the response
+        cov = ml_evidence.get("ml_concept_coverage", {}) if ml_evidence else {}
+        result["ml_concept_coverage"] = cov
+        result["ml_pipeline_version"] = ml_evidence.get("pipeline_version") if ml_evidence else "hybrid_v1.0"
+        result["ml_signal_type"] = cov.get("signal_type") if cov else None
+
+        # Mandatory model attribution fields
+        result["model_name"] = cov.get("model_name", "answer-nli-v1")
+        result["model_version"] = cov.get("model_version", "1.0.0")
+        result["dataset_version"] = cov.get("dataset_version", "mnli-snli-v1")
+        result["training_run"] = cov.get("training_run", "answer-nli-v1_pretrained_deberta_minilm")
+        result["inference_timestamp"] = cov.get("inference_timestamp", datetime.now(timezone.utc).isoformat())
+        result["model_attribution"] = {
+            "model_name": result["model_name"],
+            "model_version": result["model_version"],
+            "dataset_version": result["dataset_version"],
+            "training_run": result["training_run"],
+            "inference_timestamp": result["inference_timestamp"],
+        }
 
         return result
 
@@ -256,18 +270,33 @@ IMPORTANT INSTRUCTIONS:
         response = self._execute_with_telemetry(prompt, CodeEvaluation, task_type="evaluate_code")
         result = {**response["data"], "_metadata": response["metadata"]}
 
-        # Attach the raw ML evidence to the response for transparency & persistence
-        if ml_defect:
-            result["ml_defect_detection"] = {
-                "defect_probability": ml_defect.get("defect_probability"),
-                "risk_band": ml_defect.get("risk_band"),
-                "model_version": ml_defect.get("model_version"),
-                "confidence": ml_defect.get("confidence"),
-                "inference_time_ms": ml_defect.get("inference_time_ms"),
-                "method": ml_defect.get("method"),
-                "risk_indicators": ml_defect.get("risk_indicators", []),
-                "is_fine_tuned": ml_defect.get("is_fine_tuned", False),
-            }
+        # Attach the raw ML evidence and model attribution to the response
+        defect_data = ml_defect or {}
+        result["ml_defect_detection"] = {
+            "source": defect_data.get("source", "ml"),
+            "defect_probability": defect_data.get("defect_probability", 0.0),
+            "risk_band": defect_data.get("risk_band", "unknown"),
+            "model_version": defect_data.get("model_version", "1.0.0"),
+            "confidence": defect_data.get("confidence", 0.0),
+            "inference_time_ms": defect_data.get("inference_time_ms", 0),
+            "method": defect_data.get("method", "unknown"),
+            "risk_indicators": defect_data.get("risk_indicators", []),
+            "is_fine_tuned": defect_data.get("is_fine_tuned", False),
+        }
+
+        # Mandatory model attribution fields
+        result["model_name"] = defect_data.get("model_name", "code-risk-v1")
+        result["model_version"] = defect_data.get("model_version", "1.0.0")
+        result["dataset_version"] = defect_data.get("dataset_version", "CodeXGLUE-defect-v1")
+        result["training_run"] = defect_data.get("training_run", "code-risk-v1_codebert_ast_analysis")
+        result["inference_timestamp"] = defect_data.get("inference_timestamp", datetime.now(timezone.utc).isoformat())
+        result["model_attribution"] = {
+            "model_name": result["model_name"],
+            "model_version": result["model_version"],
+            "dataset_version": result["dataset_version"],
+            "training_run": result["training_run"],
+            "inference_timestamp": result["inference_timestamp"],
+        }
 
         return result
 

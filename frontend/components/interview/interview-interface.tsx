@@ -15,6 +15,7 @@ import { InterviewChat } from './interview-chat'
 import { apiClient, type Question, type CodeEvaluation } from '@/lib/api-client'
 import { VoiceRecorderButton } from './voice-recorder-button'
 import type { TranscriptionMetadata } from '@/hooks/use-voice-recorder'
+import { MLDetectedFocus, MLAdaptiveExplanation } from '@/components/ui/ml-explanation'
 import { 
   Code2, 
   MessageCircle, 
@@ -404,19 +405,30 @@ export function InterviewInterface({ sessionId, onSessionEnd }: InterviewInterfa
           {/* Question */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Code2 className="h-5 w-5" />
-                Question {state.questionIndex + 1}
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{state.currentQuestion.type}</Badge>
-                <Badge variant="outline">{state.currentQuestion.difficulty}</Badge>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Code2 className="h-5 w-5" />
+                  Question {state.questionIndex + 1}
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <MLDetectedFocus skill={state.currentQuestion.skill_focus || state.currentQuestion.interview_type || "Dynamic Programming"} />
+                  <Badge variant="outline">{state.currentQuestion.difficulty || "Intermediate"}</Badge>
+                </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="prose max-w-none">
-                <p className="text-lg leading-relaxed">{state.currentQuestion.text}</p>
+                <p className="text-base leading-relaxed text-foreground/90">{state.currentQuestion.question_text || (state.currentQuestion as any).text}</p>
               </div>
+
+              {/* Adaptive Selection Explanation if available */}
+              {((state.currentQuestion as any)?.why_selected || (state.currentQuestion as any)?.selection_rationale) && (
+                <MLAdaptiveExplanation
+                  explanation={(state.currentQuestion as any)?.why_selected || (state.currentQuestion as any)?.selection_rationale}
+                  targetSkill={state.currentQuestion.skill_focus}
+                  decision={(state.currentQuestion as any)?.selection_decision}
+                />
+              )}
             </CardContent>
           </Card>
 

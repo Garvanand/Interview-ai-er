@@ -24,6 +24,11 @@ import {
   Clock,
   Compass,
 } from "lucide-react"
+import {
+  MLDetectedFocus,
+  MLConceptCoverageResult,
+  MLAdaptiveExplanation,
+} from "@/components/ui/ml-explanation"
 
 const DEFAULT_PRACTICE_TOPICS = [
   { id: "algorithms", title: "Algorithms & Complexity", focus: "Dynamic Programming, Trees, Binary Search" },
@@ -329,12 +334,11 @@ function PracticeContent() {
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] p-6 space-y-5">
               {/* Question Header */}
               <div>
-                <div className="flex items-center space-x-2 text-[10px] font-mono uppercase text-slate-400 mb-1.5">
-                  <span className="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold">
-                    {activeQuestion.topic}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <MLDetectedFocus skill={activeQuestion.topic || "Algorithmic Reasoning"} />
+                  <span className="text-[10px] font-mono uppercase text-slate-400">
+                    Tier: {activeQuestion.difficulty}
                   </span>
-                  <span>•</span>
-                  <span>Tier: {activeQuestion.difficulty}</span>
                 </div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-snug">
                   {activeQuestion.question_text}
@@ -422,6 +426,12 @@ function PracticeContent() {
                       {evaluation.score} / 100
                     </span>
                   </div>
+
+                  {/* ML Concept Coverage Result */}
+                  <MLConceptCoverageResult
+                    coverageData={evaluation.ml_concept_coverage}
+                    fallbackScore={evaluation.score}
+                  />
 
                   {/* Dimension Cards */}
                   {evaluation.dimensions && evaluation.dimensions.accuracy && (

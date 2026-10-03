@@ -1,0 +1,82 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Training Configuration — Question Difficulty Predictor
+# ─────────────────────────────────────────────────────────────────────────────
+# Run: python -m ml.training.train_difficulty
+# Override: python -m ml.training.train_difficulty --config ml/configs/question_difficulty.yaml
+
+model:
+  name: "question-difficulty-v1"
+  task: "multiclass_classification"
+  version: "1.1.0"
+  base: "TF-IDF + LogisticRegression"
+  classes:
+    - "beginner"
+    - "intermediate"
+    - "advanced"
+
+dataset:
+  identifier: "BAAI/TACO + codeparrot/apps"
+  version: "2026.10"
+  sources:
+    - name: "BAAI/TACO"
+      split: "train"
+      max_samples: 1500
+    - name: "codeparrot/apps"
+      split: "train"
+      max_samples: 500
+  augmentation:
+    enabled: true
+    synthetic_bootstrap: true
+    bootstrap_replication_factor: 2
+
+preprocessing:
+  version: "1.0.0"
+  text_cleaning:
+    lowercase: false
+    strip_html: true
+    min_length_chars: 10
+  embedding:
+    model: "sentence-transformers/all-MiniLM-L6-v2"
+    dimensions: 384
+    normalize: true
+
+split:
+  test_size: 0.20
+  validation_size: 0.10          # carved from training portion
+  stratify: true
+  random_seed: 42
+
+hyperparameters:
+  # Classical baseline
+  classical:
+    vectorizer:
+      max_features: 5000
+      ngram_range: [1, 2]
+      stop_words: "english"
+      sublinear_tf: true
+    classifier:
+      C: 1.0
+      max_iter: 1000
+      class_weight: "balanced"
+      solver: "lbfgs"
+      multi_class: "multinomial"
+  # Embedding-based model
+  embedding:
+    classifier:
+      C: 2.0
+      max_iter: 1000
+      class_weight: "balanced"
+      solver: "lbfgs"
+      multi_class: "multinomial"
+
+artifacts:
+  output_dir: "ml/artifacts/difficulty"
+  weights_filename: "difficulty_model.joblib"
+  metadata_filename: "training_metadata.json"
+  # Also write to the legacy path so existing serving code picks it up
+  legacy_weights_path: "ml/models/weights/difficulty_model.joblib"
+
+reproducibility:
+  random_seed: 42
+  deterministic: true
+  log_level: "INFO"

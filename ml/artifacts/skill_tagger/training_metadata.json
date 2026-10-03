@@ -1,0 +1,332 @@
+{
+  "run_id": "question-skill-tagger-v1_20261003T063901Z",
+  "model": {
+    "name": "question-skill-tagger-v1",
+    "task": "multilabel_classification",
+    "version": "1.1.0",
+    "base": "TF-IDF + OneVsRest(LogisticRegression)"
+  },
+  "dataset": {
+    "identifier": "BAAI/TACO",
+    "version": "2026.10",
+    "hash": "e6b25c8cbaa4c28e"
+  },
+  "preprocessing_version": "1.0.0",
+  "random_seed": 42,
+  "hyperparameters": {
+    "vectorizer": {
+      "max_features": 6000,
+      "ngram_range": [
+        1,
+        2
+      ],
+      "stop_words": "english",
+      "sublinear_tf": true
+    },
+    "classifier": {
+      "C": 2.0,
+      "max_iter": 1000,
+      "class_weight": "balanced",
+      "solver": "lbfgs"
+    },
+    "prediction_threshold": 0.3,
+    "min_predictions_per_sample": 1
+  },
+  "split_sizes": {
+    "train": 1820,
+    "val": 260,
+    "test": 520
+  },
+  "training_duration_seconds": 12.39,
+  "started_at": "2026-10-03T06:38:48.642235+00:00",
+  "finished_at": "2026-10-03T06:39:01.034274+00:00",
+  "validation_metrics": {
+    "micro_f1": 0.6487,
+    "macro_f1": 0.602,
+    "precision": {
+      "micro": 0.5067,
+      "macro": 0.561
+    },
+    "recall": {
+      "micro": 0.9014,
+      "macro": 0.7647
+    },
+    "hamming_loss": 0.0907,
+    "per_class": {
+      "arrays": {
+        "precision": 0.6667,
+        "recall": 0.8889,
+        "f1": 0.7619,
+        "support": 9
+      },
+      "hashing": {
+        "precision": 0.2727,
+        "recall": 0.6,
+        "f1": 0.375,
+        "support": 5
+      },
+      "strings": {
+        "precision": 0.4634,
+        "recall": 0.8636,
+        "f1": 0.6032,
+        "support": 22
+      },
+      "sorting": {
+        "precision": 0.1974,
+        "recall": 0.8824,
+        "f1": 0.3226,
+        "support": 17
+      },
+      "search": {
+        "precision": 0.1481,
+        "recall": 0.6667,
+        "f1": 0.2424,
+        "support": 18
+      },
+      "two_pointers": {
+        "precision": 0.2,
+        "recall": 0.3333,
+        "f1": 0.25,
+        "support": 3
+      },
+      "sliding_window": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 0
+      },
+      "trees": {
+        "precision": 0.3462,
+        "recall": 0.6923,
+        "f1": 0.4615,
+        "support": 13
+      },
+      "graphs": {
+        "precision": 0.3488,
+        "recall": 0.75,
+        "f1": 0.4762,
+        "support": 20
+      },
+      "dynamic_programming": {
+        "precision": 0.191,
+        "recall": 0.7727,
+        "f1": 0.3063,
+        "support": 22
+      },
+      "greedy": {
+        "precision": 0.2468,
+        "recall": 0.8261,
+        "f1": 0.38,
+        "support": 23
+      },
+      "backtracking": {
+        "precision": 1.0,
+        "recall": 0.625,
+        "f1": 0.7692,
+        "support": 8
+      },
+      "heaps": {
+        "precision": 1.0,
+        "recall": 0.5,
+        "f1": 0.6667,
+        "support": 2
+      },
+      "stacks": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 2
+      },
+      "queues": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 4
+      },
+      "linked_lists": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 4
+      },
+      "binary_search": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 2
+      },
+      "recursion": {
+        "precision": 0.5,
+        "recall": 0.8571,
+        "f1": 0.6316,
+        "support": 7
+      },
+      "complexity": {
+        "precision": 0.9062,
+        "recall": 1.0,
+        "f1": 0.9508,
+        "support": 29
+      },
+      "data_structures": {
+        "precision": 0.3254,
+        "recall": 0.8039,
+        "f1": 0.4633,
+        "support": 51
+      },
+      "algorithms": {
+        "precision": 0.9684,
+        "recall": 0.9959,
+        "f1": 0.982,
+        "support": 246
+      }
+    }
+  },
+  "test_metrics": {
+    "micro_f1": 0.6453,
+    "macro_f1": 0.4994,
+    "precision": {
+      "micro": 0.5145,
+      "macro": 0.4513
+    },
+    "recall": {
+      "micro": 0.8652,
+      "macro": 0.6573
+    },
+    "hamming_loss": 0.0962,
+    "per_class": {
+      "arrays": {
+        "precision": 0.5625,
+        "recall": 0.5625,
+        "f1": 0.5625,
+        "support": 16
+      },
+      "hashing": {
+        "precision": 0.24,
+        "recall": 0.75,
+        "f1": 0.3636,
+        "support": 8
+      },
+      "strings": {
+        "precision": 0.5104,
+        "recall": 0.8909,
+        "f1": 0.649,
+        "support": 55
+      },
+      "sorting": {
+        "precision": 0.2284,
+        "recall": 0.6852,
+        "f1": 0.3426,
+        "support": 54
+      },
+      "search": {
+        "precision": 0.1279,
+        "recall": 0.55,
+        "f1": 0.2075,
+        "support": 40
+      },
+      "two_pointers": {
+        "precision": 0.6,
+        "recall": 0.6,
+        "f1": 0.6,
+        "support": 5
+      },
+      "sliding_window": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 0
+      },
+      "trees": {
+        "precision": 0.383,
+        "recall": 0.6667,
+        "f1": 0.4865,
+        "support": 27
+      },
+      "graphs": {
+        "precision": 0.3294,
+        "recall": 0.6512,
+        "f1": 0.4375,
+        "support": 43
+      },
+      "dynamic_programming": {
+        "precision": 0.2287,
+        "recall": 0.8113,
+        "f1": 0.3568,
+        "support": 53
+      },
+      "greedy": {
+        "precision": 0.3026,
+        "recall": 0.8214,
+        "f1": 0.4423,
+        "support": 56
+      },
+      "backtracking": {
+        "precision": 0.6923,
+        "recall": 1.0,
+        "f1": 0.8182,
+        "support": 9
+      },
+      "heaps": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 0
+      },
+      "stacks": {
+        "precision": 1.0,
+        "recall": 0.5385,
+        "f1": 0.7,
+        "support": 13
+      },
+      "queues": {
+        "precision": 0.75,
+        "recall": 0.75,
+        "f1": 0.75,
+        "support": 4
+      },
+      "linked_lists": {
+        "precision": 0.3333,
+        "recall": 1.0,
+        "f1": 0.5,
+        "support": 2
+      },
+      "binary_search": {
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1": 0.5,
+        "support": 4
+      },
+      "recursion": {
+        "precision": 0.4,
+        "recall": 0.3333,
+        "f1": 0.3636,
+        "support": 12
+      },
+      "complexity": {
+        "precision": 0.9306,
+        "recall": 0.8481,
+        "f1": 0.8874,
+        "support": 79
+      },
+      "data_structures": {
+        "precision": 0.4021,
+        "recall": 0.8519,
+        "f1": 0.5463,
+        "support": 135
+      },
+      "algorithms": {
+        "precision": 0.9567,
+        "recall": 0.9918,
+        "f1": 0.9739,
+        "support": 490
+      }
+    }
+  },
+  "artifact_path": "ml\\artifacts\\skill_tagger\\skill_classifier.joblib",
+  "artifact_hash": "ad21e4620e357e561f34b9fd173b28f53966985e7cf1246b84c9391df420e7a2",
+  "environment": {
+    "python_version": "3.12.0",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "hostname": "Harry-Putter"
+  }
+}

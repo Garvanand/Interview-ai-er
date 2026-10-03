@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const geminiApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY
 
   if (groqApiKey) {
-    const model = process.env.GROQ_MODEL || "openai/gpt-oss-120b"
+    const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile"
     const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -97,8 +97,7 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(chunk))
       },
     })
-    // @ts-expect-error - textStream is a ReadableStream<string>
-    const readable = result.textStream.pipeThrough(transform)
+    const readable = (result.textStream as any).pipeThrough(transform)
     return new Response(readable, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",

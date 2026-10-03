@@ -10,6 +10,8 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
+from ml.versioning import stamp_inference
+from ml.calibration import get_confidence_metadata
 
 
 @dataclass
@@ -65,15 +67,24 @@ class ItemResponseTheoryMasteryModel:
         # Convert theta to normalized 0-100 proficiency scale
         proficiency_100 = round((new_theta + 3.0) / 6.0 * 100.0, 1)
 
-        return {
+        _conf_meta = get_confidence_metadata("mastery-v1", round(expected_p, 3), source_tier="ml")
+        res = {
             "previous_theta": round(current_theta, 3),
             "updated_theta": round(new_theta, 3),
             "estimated_proficiency": proficiency_100,
             "expected_prob": round(expected_p, 3),
             "observed_prob": round(observed_p, 3),
             "residual": round(residual, 3),
-            "method": "2pl_irt_update"
+            "method": "2pl_irt_update",
+            "confidence_metadata": _conf_meta.to_dict(),
+            "confidence_band": _conf_meta.confidence_band.value,
+            "uncertainty_note": (
+                "Theta is a latent ability estimate, NOT a confidence score. "
+                "The appropriate uncertainty measure is the Standard Error of "
+                "Measurement (SEM), not prediction confidence."
+            ),
         }
+        return stamp_inference("mastery-v1", res)
 
     def theta_to_proficiency(self, theta: float) -> float:
         """Map latent ability theta [-3, +3] to [0, 100]."""

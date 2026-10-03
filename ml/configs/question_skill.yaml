@@ -1,0 +1,86 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Training Configuration — Question Skill/Topic Tagger
+# ─────────────────────────────────────────────────────────────────────────────
+# Run: python -m ml.training.train_skill_tagger
+# Override: python -m ml.training.train_skill_tagger --config ml/configs/question_skill.yaml
+
+model:
+  name: "question-skill-tagger-v1"
+  task: "multilabel_classification"
+  version: "1.1.0"
+  base: "TF-IDF + OneVsRest(LogisticRegression)"
+  classes:
+    - "arrays"
+    - "hashing"
+    - "strings"
+    - "sorting"
+    - "search"
+    - "two_pointers"
+    - "sliding_window"
+    - "trees"
+    - "graphs"
+    - "dynamic_programming"
+    - "greedy"
+    - "backtracking"
+    - "heaps"
+    - "stacks"
+    - "queues"
+    - "linked_lists"
+    - "binary_search"
+    - "recursion"
+    - "complexity"
+    - "data_structures"
+    - "algorithms"
+
+dataset:
+  identifier: "BAAI/TACO"
+  version: "2026.10"
+  sources:
+    - name: "BAAI/TACO"
+      split: "train"
+      max_samples: 2500
+  augmentation:
+    enabled: true
+    interview_seeds: true
+    replication_factor: 4
+
+preprocessing:
+  version: "1.0.0"
+  text_cleaning:
+    lowercase: false
+    strip_html: true
+    min_length_chars: 10
+  skill_mapping:
+    use_canonical_taxonomy: true
+    taxonomy_size: 21
+
+split:
+  test_size: 0.20
+  validation_size: 0.10
+  stratify_multilabel: true
+  random_seed: 42
+
+hyperparameters:
+  vectorizer:
+    max_features: 6000
+    ngram_range: [1, 2]
+    stop_words: "english"
+    sublinear_tf: true
+  classifier:
+    C: 2.0
+    max_iter: 1000
+    class_weight: "balanced"
+    solver: "lbfgs"
+  prediction_threshold: 0.30
+  min_predictions_per_sample: 1
+
+artifacts:
+  output_dir: "ml/artifacts/skill_tagger"
+  weights_filename: "skill_classifier.joblib"
+  metadata_filename: "training_metadata.json"
+  legacy_weights_path: "ml/models/weights/skill_classifier.joblib"
+
+reproducibility:
+  random_seed: 42
+  deterministic: true
+  log_level: "INFO"

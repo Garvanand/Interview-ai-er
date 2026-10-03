@@ -1,0 +1,535 @@
+{
+  "model_name": "QuestionDifficultyPredictor",
+  "model_alias": "question-difficulty-v1",
+  "total_samples": 20,
+  "primary_metric": 0.55,
+  "macro_f1": 0.5443,
+  "confusion_matrix": {
+    "labels": [
+      "beginner",
+      "intermediate",
+      "advanced"
+    ],
+    "raw_matrix": [
+      [
+        5,
+        2,
+        0
+      ],
+      [
+        0,
+        4,
+        3
+      ],
+      [
+        1,
+        3,
+        2
+      ]
+    ],
+    "normalized_matrix": [
+      [
+        0.7143,
+        0.2857,
+        0.0
+      ],
+      [
+        0.0,
+        0.5714,
+        0.4286
+      ],
+      [
+        0.1667,
+        0.5,
+        0.3333
+      ]
+    ]
+  },
+  "per_class_metrics": {
+    "beginner": {
+      "label": "beginner",
+      "precision": 0.8333,
+      "recall": 0.7143,
+      "f1_score": 0.7692,
+      "support": 7
+    },
+    "intermediate": {
+      "label": "intermediate",
+      "precision": 0.4444,
+      "recall": 0.5714,
+      "f1_score": 0.5,
+      "support": 7
+    },
+    "advanced": {
+      "label": "advanced",
+      "precision": 0.4,
+      "recall": 0.3333,
+      "f1_score": 0.3636,
+      "support": 6
+    }
+  },
+  "failure_category_counts": {
+    "easy_classified_as_medium": 2,
+    "medium_classified_as_hard": 3,
+    "hard_classified_as_easy": 1,
+    "medium_classified_as_easy": 0,
+    "hard_classified_as_medium": 3,
+    "easy_classified_as_hard": 0,
+    "correct": 11
+  },
+  "failure_cases": [
+    {
+      "id": "diff_beg_03",
+      "question": "Find the maximum number in a list of numbers without using max().",
+      "expected": "beginner",
+      "predicted": "intermediate",
+      "category": "easy_classified_as_medium",
+      "confidence": 0.355,
+      "probabilities": {
+        "beginner": 0.3514,
+        "intermediate": 0.355,
+        "advanced": 0.2936
+      },
+      "notes": "Fundamental comparison logic"
+    },
+    {
+      "id": "diff_beg_as_med_03",
+      "question": "Reverse a list of integers in place using an index swap technique.",
+      "expected": "beginner",
+      "predicted": "intermediate",
+      "category": "easy_classified_as_medium",
+      "confidence": 0.603,
+      "probabilities": {
+        "beginner": 0.1922,
+        "intermediate": 0.603,
+        "advanced": 0.2049
+      },
+      "notes": "Simple two-index swap; keyword models elevate to intermediate algorithms"
+    },
+    {
+      "id": "diff_int_04",
+      "question": "Implement Breadth-First Search to find the shortest path in an unweighted grid with obstacles.",
+      "expected": "intermediate",
+      "predicted": "advanced",
+      "category": "medium_classified_as_hard",
+      "confidence": 0.5677,
+      "probabilities": {
+        "beginner": 0.1131,
+        "intermediate": 0.3191,
+        "advanced": 0.5677
+      },
+      "notes": "Standard queue-based graph traversal"
+    },
+    {
+      "id": "diff_med_as_hard_01",
+      "question": "Find the length of the longest palindromic substring using dynamic programming or expand around centers with optimal substructure.",
+      "expected": "intermediate",
+      "predicted": "advanced",
+      "category": "medium_classified_as_hard",
+      "confidence": 0.6029,
+      "probabilities": {
+        "beginner": 0.1621,
+        "intermediate": 0.2351,
+        "advanced": 0.6029
+      },
+      "notes": "Standard O(N^2) medium, but 'dynamic programming' and 'optimal substructure' trigger advanced models"
+    },
+    {
+      "id": "diff_med_as_hard_02",
+      "question": "Implement Dijkstra's shortest path algorithm using a min-heap priority queue on a weighted directed graph.",
+      "expected": "intermediate",
+      "predicted": "advanced",
+      "category": "medium_classified_as_hard",
+      "confidence": 0.6152,
+      "probabilities": {
+        "beginner": 0.0836,
+        "intermediate": 0.3012,
+        "advanced": 0.6152
+      },
+      "notes": "Textbook undergraduate graph algorithm, heavily elevated to hard due to 'Dijkstra', 'min-heap priority queue'"
+    },
+    {
+      "id": "diff_adv_02",
+      "question": "Implement a persistent Red-Black Tree supporting historical version queries in O(log n) time per update.",
+      "expected": "advanced",
+      "predicted": "intermediate",
+      "category": "hard_classified_as_medium",
+      "confidence": 0.6169,
+      "probabilities": {
+        "beginner": 0.1153,
+        "intermediate": 0.6169,
+        "advanced": 0.2678
+      },
+      "notes": "Advanced persistent data structures"
+    },
+    {
+      "id": "diff_hard_as_easy_01",
+      "question": "Nim Game: Given n stones, you take turns removing 1 to 3 stones. Return true if you can win.",
+      "expected": "advanced",
+      "predicted": "intermediate",
+      "category": "hard_classified_as_medium",
+      "confidence": 0.4199,
+      "probabilities": {
+        "beginner": 0.297,
+        "intermediate": 0.4199,
+        "advanced": 0.2832
+      },
+      "notes": "Mathematical game theory / invariant proof. Extreme brevity (1 short sentence) tricks models into beginner"
+    },
+    {
+      "id": "diff_hard_as_easy_02",
+      "question": "Find the n-th ugly number whose prime factors are limited to 2, 3, and 5.",
+      "expected": "advanced",
+      "predicted": "beginner",
+      "category": "hard_classified_as_easy",
+      "confidence": 0.382,
+      "probabilities": {
+        "beginner": 0.382,
+        "intermediate": 0.35,
+        "advanced": 0.268
+      },
+      "notes": "Multi-pointer min-heap / DP number theory. Brevity and lack of jargon fools bag-of-words into easy"
+    },
+    {
+      "id": "diff_hard_as_easy_03",
+      "question": "Stone Game: Alice and Bob take stones from ends. Predict if first player always wins.",
+      "expected": "advanced",
+      "predicted": "intermediate",
+      "category": "hard_classified_as_medium",
+      "confidence": 0.3639,
+      "probabilities": {
+        "beginner": 0.3521,
+        "intermediate": 0.3639,
+        "advanced": 0.284
+      },
+      "notes": "Deceptively short minimax dynamic programming / parity proof"
+    }
+  ],
+  "hard_examples": [
+    {
+      "example_id": "diff_beg_01",
+      "input_snippet": "Write a function to check if a given integer is even or odd.",
+      "true_label": "beginner",
+      "predicted_label": "beginner",
+      "confidence": 0.3986,
+      "margin": 0.0792,
+      "error_category": "borderline_correct",
+      "root_cause_explanation": "Correct but low margin (0.08) between top classes."
+    },
+    {
+      "example_id": "diff_beg_02",
+      "input_snippet": "Given an array of integers, return the sum of all elements.",
+      "true_label": "beginner",
+      "predicted_label": "beginner",
+      "confidence": 0.3552,
+      "margin": 0.0087,
+      "error_category": "borderline_correct",
+      "root_cause_explanation": "Correct but low margin (0.01) between top classes."
+    },
+    {
+      "example_id": "diff_beg_03",
+      "input_snippet": "Find the maximum number in a list of numbers without using max().",
+      "true_label": "beginner",
+      "predicted_label": "intermediate",
+      "confidence": 0.355,
+      "margin": 0.0036,
+      "error_category": "easy_classified_as_medium",
+      "root_cause_explanation": "Mismatched complexity expectations: easy_classified_as_medium. Expected beginner, predicted intermediate (prob=0.35, margin=0.00). Context: Fundamental comparison logic"
+    },
+    {
+      "example_id": "diff_beg_04",
+      "input_snippet": "Convert a temperature in Celsius to Fahrenheit.",
+      "true_label": "beginner",
+      "predicted_label": "beginner",
+      "confidence": 0.4102,
+      "margin": 0.1053,
+      "error_category": "borderline_correct",
+      "root_cause_explanation": "Correct but low margin (0.11) between top classes."
+    },
+    {
+      "example_id": "diff_beg_as_med_02",
+      "input_snippet": "Given a string of characters, determine if it contains any vowels using a boolean flag and pointer iteration.",
+      "true_label": "beginner",
+      "predicted_label": "beginner",
+      "confidence": 0.3808,
+      "margin": 0.0367,
+      "error_category": "borderline_correct",
+      "root_cause_explanation": "Correct but low margin (0.04) between top classes."
+    },
+    {
+      "example_id": "diff_beg_as_med_03",
+      "input_snippet": "Reverse a list of integers in place using an index swap technique.",
+      "true_label": "beginner",
+      "predicted_label": "intermediate",
+      "confidence": 0.603,
+      "margin": 0.3981,
+      "error_category": "easy_classified_as_medium",
+      "root_cause_explanation": "Mismatched complexity expectations: easy_classified_as_medium. Expected beginner, predicted intermediate (prob=0.60, margin=0.40). Context: Simple two-index swap; keyword models elevate to intermediate algorithms"
+    },
+    {
+      "example_id": "diff_int_01",
+      "input_snippet": "Given a singly linked list, determine if it has a cycle using Floyd's Tortoise and Hare algorithm.",
+      "true_label": "intermediate",
+      "predicted_label": "intermediate",
+      "confidence": 0.4038,
+      "margin": 0.085,
+      "error_category": "borderline_correct",
+      "root_cause_explanation": "Correct but low margin (0.09) between top classes."
+    },
+    {
+      "example_id": "diff_int_04",
+      "input_snippet": "Implement Breadth-First Search to find the shortest path in an unweighted grid with obstacles.",
+      "true_label": "intermediate",
+      "predicted_label": "advanced",
+      "confidence": 0.5677,
+      "margin": 0.2486,
+      "error_category": "medium_classified_as_hard",
+      "root_cause_explanation": "Mismatched complexity expectations: medium_classified_as_hard. Expected intermediate, predicted advanced (prob=0.57, margin=0.25). Context: Standard queue-based graph traversal"
+    },
+    {
+      "example_id": "diff_med_as_hard_01",
+      "input_snippet": "Find the length of the longest palindromic substring using dynamic programming or expand around centers with optimal substructure.",
+      "true_label": "intermediate",
+      "predicted_label": "advanced",
+      "confidence": 0.6029,
+      "margin": 0.3678,
+      "error_category": "medium_classified_as_hard",
+      "root_cause_explanation": "Mismatched complexity expectations: medium_classified_as_hard. Expected intermediate, predicted advanced (prob=0.60, margin=0.37). Context: Standard O(N^2) medium, but 'dynamic programming' and 'optimal substructure' trigger advanced models"
+    },
+    {
+      "example_id": "diff_med_as_hard_02",
+      "input_snippet": "Implement Dijkstra's shortest path algorithm using a min-heap priority queue on a weighted directed graph.",
+      "true_label": "intermediate",
+      "predicted_label": "advanced",
+      "confidence": 0.6152,
+      "margin": 0.314,
+      "error_category": "medium_classified_as_hard",
+      "root_cause_explanation": "Mismatched complexity expectations: medium_classified_as_hard. Expected intermediate, predicted advanced (prob=0.62, margin=0.31). Context: Textbook undergraduate graph algorithm, heavily elevated to hard due to 'Dijkstra', 'min-heap priority queue'"
+    },
+    {
+      "example_id": "diff_adv_02",
+      "input_snippet": "Implement a persistent Red-Black Tree supporting historical version queries in O(log n) time per update.",
+      "true_label": "advanced",
+      "predicted_label": "intermediate",
+      "confidence": 0.6169,
+      "margin": 0.3491,
+      "error_category": "hard_classified_as_medium",
+      "root_cause_explanation": "Mismatched complexity expectations: hard_classified_as_medium. Expected advanced, predicted intermediate (prob=0.62, margin=0.35). Context: Advanced persistent data structures"
+    },
+    {
+      "example_id": "diff_hard_as_easy_01",
+      "input_snippet": "Nim Game: Given n stones, you take turns removing 1 to 3 stones. Return true if you can win.",
+      "true_label": "advanced",
+      "predicted_label": "intermediate",
+      "confidence": 0.4199,
+      "margin": 0.1229,
+      "error_category": "hard_classified_as_medium",
+      "root_cause_explanation": "Mismatched complexity expectations: hard_classified_as_medium. Expected advanced, predicted intermediate (prob=0.42, margin=0.12). Context: Mathematical game theory / invariant proof. Extreme brevity (1 short sentence) tricks models into beginner"
+    },
+    {
+      "example_id": "diff_hard_as_easy_02",
+      "input_snippet": "Find the n-th ugly number whose prime factors are limited to 2, 3, and 5.",
+      "true_label": "advanced",
+      "predicted_label": "beginner",
+      "confidence": 0.382,
+      "margin": 0.032,
+      "error_category": "hard_classified_as_easy",
+      "root_cause_explanation": "Mismatched complexity expectations: hard_classified_as_easy. Expected advanced, predicted beginner (prob=0.38, margin=0.03). Context: Multi-pointer min-heap / DP number theory. Brevity and lack of jargon fools bag-of-words into easy"
+    },
+    {
+      "example_id": "diff_hard_as_easy_03",
+      "input_snippet": "Stone Game: Alice and Bob take stones from ends. Predict if first player always wins.",
+      "true_label": "advanced",
+      "predicted_label": "intermediate",
+      "confidence": 0.3639,
+      "margin": 0.0118,
+      "error_category": "hard_classified_as_medium",
+      "root_cause_explanation": "Mismatched complexity expectations: hard_classified_as_medium. Expected advanced, predicted intermediate (prob=0.36, margin=0.01). Context: Deceptively short minimax dynamic programming / parity proof"
+    }
+  ],
+  "false_positives": [
+    {
+      "class": "intermediate",
+      "true_class": "beginner",
+      "question": "Find the maximum number in a list of numbers without using max()....",
+      "confidence": 0.355,
+      "category": "easy_classified_as_medium"
+    },
+    {
+      "class": "intermediate",
+      "true_class": "beginner",
+      "question": "Reverse a list of integers in place using an index swap technique....",
+      "confidence": 0.603,
+      "category": "easy_classified_as_medium"
+    },
+    {
+      "class": "advanced",
+      "true_class": "intermediate",
+      "question": "Implement Breadth-First Search to find the shortest path in an unweighted grid w...",
+      "confidence": 0.5677,
+      "category": "medium_classified_as_hard"
+    },
+    {
+      "class": "advanced",
+      "true_class": "intermediate",
+      "question": "Find the length of the longest palindromic substring using dynamic programming o...",
+      "confidence": 0.6029,
+      "category": "medium_classified_as_hard"
+    },
+    {
+      "class": "advanced",
+      "true_class": "intermediate",
+      "question": "Implement Dijkstra's shortest path algorithm using a min-heap priority queue on ...",
+      "confidence": 0.6152,
+      "category": "medium_classified_as_hard"
+    },
+    {
+      "class": "intermediate",
+      "true_class": "advanced",
+      "question": "Implement a persistent Red-Black Tree supporting historical version queries in O...",
+      "confidence": 0.6169,
+      "category": "hard_classified_as_medium"
+    },
+    {
+      "class": "intermediate",
+      "true_class": "advanced",
+      "question": "Nim Game: Given n stones, you take turns removing 1 to 3 stones. Return true if ...",
+      "confidence": 0.4199,
+      "category": "hard_classified_as_medium"
+    },
+    {
+      "class": "beginner",
+      "true_class": "advanced",
+      "question": "Find the n-th ugly number whose prime factors are limited to 2, 3, and 5....",
+      "confidence": 0.382,
+      "category": "hard_classified_as_easy"
+    },
+    {
+      "class": "intermediate",
+      "true_class": "advanced",
+      "question": "Stone Game: Alice and Bob take stones from ends. Predict if first player always ...",
+      "confidence": 0.3639,
+      "category": "hard_classified_as_medium"
+    }
+  ],
+  "false_negatives": [
+    {
+      "class": "beginner",
+      "predicted_class": "intermediate",
+      "question": "Find the maximum number in a list of numbers without using max()....",
+      "confidence": 0.355,
+      "category": "easy_classified_as_medium"
+    },
+    {
+      "class": "beginner",
+      "predicted_class": "intermediate",
+      "question": "Reverse a list of integers in place using an index swap technique....",
+      "confidence": 0.603,
+      "category": "easy_classified_as_medium"
+    },
+    {
+      "class": "intermediate",
+      "predicted_class": "advanced",
+      "question": "Implement Breadth-First Search to find the shortest path in an unweighted grid w...",
+      "confidence": 0.5677,
+      "category": "medium_classified_as_hard"
+    },
+    {
+      "class": "intermediate",
+      "predicted_class": "advanced",
+      "question": "Find the length of the longest palindromic substring using dynamic programming o...",
+      "confidence": 0.6029,
+      "category": "medium_classified_as_hard"
+    },
+    {
+      "class": "intermediate",
+      "predicted_class": "advanced",
+      "question": "Implement Dijkstra's shortest path algorithm using a min-heap priority queue on ...",
+      "confidence": 0.6152,
+      "category": "medium_classified_as_hard"
+    },
+    {
+      "class": "advanced",
+      "predicted_class": "intermediate",
+      "question": "Implement a persistent Red-Black Tree supporting historical version queries in O...",
+      "confidence": 0.6169,
+      "category": "hard_classified_as_medium"
+    },
+    {
+      "class": "advanced",
+      "predicted_class": "intermediate",
+      "question": "Nim Game: Given n stones, you take turns removing 1 to 3 stones. Return true if ...",
+      "confidence": 0.4199,
+      "category": "hard_classified_as_medium"
+    },
+    {
+      "class": "advanced",
+      "predicted_class": "beginner",
+      "question": "Find the n-th ugly number whose prime factors are limited to 2, 3, and 5....",
+      "confidence": 0.382,
+      "category": "hard_classified_as_easy"
+    },
+    {
+      "class": "advanced",
+      "predicted_class": "intermediate",
+      "question": "Stone Game: Alice and Bob take stones from ends. Predict if first player always ...",
+      "confidence": 0.3639,
+      "category": "hard_classified_as_medium"
+    }
+  ],
+  "confidence_distribution": {
+    "bin_edges": [
+      0.0,
+      0.1,
+      0.2,
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      1.0
+    ],
+    "overall_counts": [
+      0,
+      0,
+      0,
+      6,
+      4,
+      3,
+      7,
+      0,
+      0,
+      0
+    ],
+    "correct_counts": [
+      0,
+      0,
+      0,
+      3,
+      3,
+      2,
+      3,
+      0,
+      0,
+      0
+    ],
+    "error_counts": [
+      0,
+      0,
+      0,
+      3,
+      1,
+      1,
+      4,
+      0,
+      0,
+      0
+    ],
+    "mean_confidence_overall": 0.5014,
+    "mean_confidence_correct": 0.5001,
+    "mean_confidence_error": 0.5029,
+    "calibration_gap": -0.0028
+  }
+}

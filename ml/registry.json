@@ -1,0 +1,149 @@
+{
+  "registry_version": "1.0.0",
+  "updated_at": "2026-10-03T12:00:00Z",
+  "description": "Authoritative machine-readable registry of ML models for the Interview AI platform. Defines active and historical versions for all inferences.",
+  "models": {
+    "question-difficulty-v1": {
+      "model_name": "question-difficulty-v1",
+      "model_version": "1.1.0",
+      "task": "Question Difficulty Prediction",
+      "category": "TRAINED BY US",
+      "base_model": "all-MiniLM-L6-v2 + TF-IDF Logistic Regression",
+      "dataset_identifier": "BAAI/TACO + codeparrot/apps",
+      "dataset_version": "2026.10",
+      "training_run": "question-difficulty-v1_20261003T063825Z",
+      "artifact_path": "ml/artifacts/difficulty/difficulty_model.joblib",
+      "artifact_hash": "12ef38983aa092caf9c187a70ef40c17ca197f93f4a439e1556d905dfcbf9843",
+      "status": "active",
+      "hardware_target": "CPU",
+      "expected_latency_ms": 25,
+      "deployed_at": "2026-10-03T06:38:25Z",
+      "description": "Predicts beginner, intermediate, or advanced difficulty from question text.",
+      "metrics": {
+        "test_accuracy": 0.6567,
+        "test_macro_f1": 0.6558,
+        "test_weighted_f1": 0.6555,
+        "val_accuracy": 0.5533,
+        "val_macro_f1": 0.5465
+      },
+      "previous_versions": [
+        {
+          "model_version": "1.0.0",
+          "dataset_version": "2026.09",
+          "training_run": "question-difficulty-v1_20260915T100000Z",
+          "artifact_hash": "legacy_diff_hash_v100",
+          "status": "retired",
+          "retired_at": "2026-10-03T06:38:25Z",
+          "notes": "Baseline TF-IDF classifier without embedding augmentation."
+        }
+      ]
+    },
+    "question-skill-v1": {
+      "model_name": "question-skill-v1",
+      "model_version": "1.1.0",
+      "task": "Question Skill/Topic Classification",
+      "category": "TRAINED BY US",
+      "base_model": "all-MiniLM-L6-v2 + TF-IDF OneVsRest Logistic Regression",
+      "dataset_identifier": "BAAI/TACO",
+      "dataset_version": "2026.10",
+      "training_run": "question-skill-tagger-v1_20261003T063901Z",
+      "artifact_path": "ml/artifacts/skill_tagger/skill_classifier.joblib",
+      "artifact_hash": "ad21e4620e357e561f34b9fd173b28f53966985e7cf1246b84c9391df420e7a2",
+      "status": "active",
+      "hardware_target": "CPU",
+      "expected_latency_ms": 20,
+      "deployed_at": "2026-10-03T06:39:01Z",
+      "description": "Multi-label classification of technical topics and taxonomy skills across 21 canonical categories.",
+      "metrics": {
+        "test_micro_f1": 0.6453,
+        "test_macro_f1": 0.4994,
+        "test_hamming_loss": 0.0962,
+        "val_micro_f1": 0.6487,
+        "val_macro_f1": 0.6020
+      },
+      "previous_versions": [
+        {
+          "model_version": "1.0.0",
+          "dataset_version": "2026.09",
+          "training_run": "question-skill-tagger-v1_20260915T100000Z",
+          "artifact_hash": "legacy_skill_hash_v100",
+          "status": "retired",
+          "retired_at": "2026-10-03T06:39:01Z",
+          "notes": "Initial 12-class heuristic and classical baseline classifier."
+        }
+      ]
+    },
+    "answer-nli-v1": {
+      "model_name": "answer-nli-v1",
+      "model_version": "1.0.0",
+      "task": "Transformer-based Answer Concept Coverage",
+      "category": "PRETRAINED",
+      "base_model": "cross-encoder/nli-deberta-v3-base + sentence-transformers/all-MiniLM-L6-v2",
+      "dataset_identifier": "MNLI + SNLI",
+      "dataset_version": "mnli-snli-v1",
+      "training_run": "answer-nli-v1_pretrained_deberta_minilm",
+      "artifact_path": "cross-encoder/nli-deberta-v3-base",
+      "artifact_hash": "deberta_v3_nli_minilm_hash_v1",
+      "status": "active",
+      "hardware_target": "CPU or GPU",
+      "expected_latency_ms": 150,
+      "deployed_at": "2026-09-30T12:00:00Z",
+      "description": "Natural Language Inference cross-encoder to compute conceptual rubric coverage with MiniLM semantic fallback.",
+      "metrics": {
+        "entailment_calibration_err": 0.082,
+        "expected_latency_ms": 150
+      },
+      "previous_versions": []
+    },
+    "code-risk-v1": {
+      "model_name": "code-risk-v1",
+      "model_version": "1.0.0",
+      "task": "Code Defect/Vulnerability Risk Detection",
+      "category": "FINE-TUNED BY US",
+      "base_model": "microsoft/codebert-base",
+      "dataset_identifier": "CodeXGLUE Defect Detection",
+      "dataset_version": "CodeXGLUE-defect-v1",
+      "training_run": "code-risk-v1_codebert_ast_analysis",
+      "artifact_path": "ml/models/weights/codebert_defect",
+      "artifact_hash": "codebert_defect_risk_hash_v1",
+      "status": "active",
+      "hardware_target": "CPU or GPU",
+      "expected_latency_ms": 180,
+      "deployed_at": "2026-09-30T12:00:00Z",
+      "description": "Sequence classification model detecting potential defects, vulnerabilities, and boundary flaws.",
+      "metrics": {
+        "accuracy": 0.648,
+        "macro_f1": 0.639
+      },
+      "previous_versions": []
+    },
+    "mastery-v1": {
+      "model_name": "mastery-v1",
+      "model_version": "1.0.0",
+      "task": "Candidate Skill/Mastery Modeling",
+      "category": "TRAINED BY US",
+      "base_model": "2-Parameter Logistic Item Response Theory (2PL-IRT) / BKT",
+      "dataset_identifier": "mgor/EDNet",
+      "dataset_version": "EdNet-KT1-v1",
+      "training_run": "mastery-v1_2pl_irt_calibration",
+      "artifact_path": "ml/models/skill_mastery.py",
+      "artifact_hash": "irt_2pl_ednet_calibrated_hash_v1",
+      "status": "active",
+      "hardware_target": "CPU",
+      "expected_latency_ms": 2,
+      "deployed_at": "2026-09-30T12:00:00Z",
+      "description": "Probabilistic latent ability and skill mastery estimation calibrated via EdNet interaction logs.",
+      "metrics": {
+        "latent_scale_range": "[-3.0, +3.0]",
+        "proficiency_scale": "[0.0, 100.0]"
+      },
+      "previous_versions": []
+    }
+  },
+  "aliases": {
+    "question-skill-classifier-v1": "question-skill-v1",
+    "answer-concept-coverage-v1": "answer-nli-v1",
+    "code-defect-detector-v1": "code-risk-v1",
+    "candidate-skill-mastery-irt-v1": "mastery-v1"
+  }
+}

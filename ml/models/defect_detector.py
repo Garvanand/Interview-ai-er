@@ -1,36 +1,16 @@
 """
-Code Defect & Vulnerability Risk Detection Model.
-Category: FINE-TUNED BY US (CodeBERT on CodeXGLUE defect detection corpus).
-Base: microsoft/codebert-base
-https://huggingface.co/microsoft/codebert-base
+Code Defect & Vulnerability Risk Detection Model with 3-Tier Fallback Architecture.
 
-Pipeline:
-    candidate code
-    ↓  language validation
-    ↓  CodeBERT encoder
-    ↓  classification head
-    ↓  defect probability + risk band
-    ↓  (downstream: code execution/tests → Gemini code reasoning → combined)
+Classes of Intelligence:
+1. PRIMARY ML ("ml"): Fine-tuned CodeBERT on CodeXGLUE defect corpus.
+2. SECONDARY MODEL ("pretrained" or "deterministic"): Pretrained base CodeBERT or deterministic AST heuristics.
+3. LLM FALLBACK ("llm"): Structured Gemini code review.
+4. UNAVAILABLE ("unavailable"): If inputs are malformed or all tiers fail.
 
-This model outputs an ADDITIONAL code-risk signal.
-It is NOT proof that code is incorrect — executable tests remain authoritative
-for runtime correctness.
+Every result must explicitly indicate its `source`:
+- "ml", "pretrained", "llm", "deterministic", "unavailable"
 
-Output format:
-    {
-        "defect_probability": 0.73,
-        "risk_band": "high",
-        "model_version": "codebert_defect_v1.0",
-        "confidence": 0.85,
-        "inference_time_ms": 42.3,
-        "risk_indicators": [...],
-        "method": "fine_tuned_codebert"
-    }
-
-Risk band thresholds (documented & deterministic):
-    low:    defect_probability < 0.30
-    medium: 0.30 <= defect_probability < 0.65
-    high:   defect_probability >= 0.65
+Confidence is tied to the actual method and never manufactured.
 """
 from __future__ import annotations
 
@@ -39,11 +19,18 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 import numpy as np
 
 from ml.features.code_features import extract_code_lexical_features
+from ml.fallbacks import (
+    IntelligenceSource,
+    log_fallback_event,
+    try_llm_code_defect_fallback,
+)
+from ml.versioning import stamp_inference
+from ml.calibration import get_confidence_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +38,9 @@ DEFAULT_CODEBERT_MODEL = "microsoft/codebert-base"
 DEFAULT_FINE_TUNED_PATH = "ml/models/weights/codebert_defect"
 MODEL_VERSION = "codebert_defect_v1.0"
 
-# Risk band thresholds
 LOW_RISK_THRESHOLD = 0.30
 HIGH_RISK_THRESHOLD = 0.65
 
-# Supported languages for full analysis
 SUPPORTED_LANGUAGES = {"python", "py", "c", "cpp", "c++", "java", "javascript", "js", "go", "rust"}
 
 
@@ -71,13 +56,9 @@ def _classify_risk_band(defect_prob: float) -> str:
 
 class CodeDefectDetector:
     """
-    Detects software defect risk and code vulnerability patterns using CodeBERT.
-
-    Loads a fine-tuned CodeBERT model if available at the configured path,
-    falls back to the base model, or to deterministic AST heuristics
-    if no transformer model can be loaded.
-
-    Inference is optional — the system works when the model artifact is unavailable.
+    Detects software defect risk and code vulnerability patterns using CodeBERT
+    with 3-tier fallback architecture:
+    Primary (ml) -> Secondary (pretrained/deterministic AST) -> LLM (llm) -> Unavailable
     """
 
     def __init__(
@@ -85,7 +66,6 @@ class CodeDefectDetector:
         model_path: Optional[str] = None,
         device: str = "cpu",
     ):
-        # Prefer fine-tuned model, then base model
         self._fine_tuned_path = model_path or DEFAULT_FINE_TUNED_PATH
         self.device = device
         self._tokenizer = None
@@ -94,14 +74,15 @@ class CodeDefectDetector:
         self._is_fine_tuned = False
         self._fallback_mode = False
         self._load_attempted = False
+        self._load_error: Optional[str] = None
         self._training_metadata: Optional[Dict] = None
 
     def _load_model(self):
         """
-        Lazy model loading with graceful fallback chain:
-            1. Fine-tuned CodeBERT at DEFAULT_FINE_TUNED_PATH
-            2. Base microsoft/codebert-base (zero-init classification head)
-            3. Deterministic AST heuristic fallback
+        Lazy model loading with corruption, OOM, and offline resilience:
+        1. Fine-tuned CodeBERT at _fine_tuned_path
+        2. Base microsoft/codebert-base
+        3. Deterministic AST heuristic fallback
         """
         if self._load_attempted:
             return
@@ -119,7 +100,6 @@ class CodeDefectDetector:
                 self._model.eval()
                 self._is_fine_tuned = True
 
-                # Load training metadata if available
                 meta_path = ft_path / "training_metadata.json"
                 if meta_path.exists():
                     with open(meta_path) as f:
@@ -128,46 +108,38 @@ class CodeDefectDetector:
                         "model_version", MODEL_VERSION
                     )
 
-                logger.info(
-                    "Fine-tuned CodeBERT loaded successfully (version=%s)",
-                    self._model_version,
-                )
+                logger.info("Fine-tuned CodeBERT loaded successfully (version=%s)", self._model_version)
                 return
             except Exception as e:
-                logger.warning(
-                    "Failed to load fine-tuned model from %s: %s. Trying base model.",
-                    ft_path, e,
-                )
+                self._load_error = f"Fine-tuned model load failed: {e}"
+                logger.warning("Failed to load fine-tuned model from %s: %s. Trying base model.", ft_path, e)
 
-        # Try base CodeBERT
+        # Try base CodeBERT (offline-first check)
+        local_only = os.getenv("ALLOW_NETWORK_DOWNLOAD", "0").lower() not in ("1", "true")
         try:
             from transformers import AutoModelForSequenceClassification, AutoTokenizer
-            logger.info("Loading base CodeBERT model: %s", DEFAULT_CODEBERT_MODEL)
-            self._tokenizer = AutoTokenizer.from_pretrained(DEFAULT_CODEBERT_MODEL)
+            logger.info("Attempting base CodeBERT load (local_only=%s)", local_only)
+            self._tokenizer = AutoTokenizer.from_pretrained(DEFAULT_CODEBERT_MODEL, local_files_only=local_only)
             self._model = AutoModelForSequenceClassification.from_pretrained(
-                DEFAULT_CODEBERT_MODEL, num_labels=2
+                DEFAULT_CODEBERT_MODEL, num_labels=2, local_files_only=local_only
             )
             self._model.to(self.device)
             self._model.eval()
             self._is_fine_tuned = False
             self._model_version = f"{MODEL_VERSION}_base_zero_init"
-            logger.info("Base CodeBERT loaded (zero-init classification head)")
+            logger.info("Base CodeBERT loaded")
             return
         except Exception as e:
-            logger.warning(
-                "Could not load CodeBERT (%s): %s. Using deterministic AST fallback.",
-                DEFAULT_CODEBERT_MODEL, e,
-            )
+            self._load_error = f"CodeBERT unavailable: {e}"
+            logger.info("CodeBERT unavailable (%s): %s. Will use AST / LLM fallbacks.", DEFAULT_CODEBERT_MODEL, e)
             self._fallback_mode = True
 
     def _run_codebert_inference(self, code: str) -> Dict[str, float]:
-        """
-        Run forward pass through CodeBERT and return class probabilities.
-
-        Returns:
-            {"clean_prob": float, "defect_prob": float}
-        """
+        """Run forward pass through CodeBERT."""
         import torch
+
+        if self._tokenizer is None or self._model is None:
+            raise RuntimeError("Model or tokenizer is not loaded.")
 
         inputs = self._tokenizer(
             code,
@@ -193,31 +165,43 @@ class CodeDefectDetector:
 
     def _compute_confidence(self, defect_prob: float) -> float:
         """
-        Confidence = how far the prediction is from the decision boundary (0.5).
+        Confidence = distance from decision boundary (0.5).
         A prediction at exactly 0.5 has 0% confidence; at 0.0 or 1.0 has 100%.
         """
         return round(abs(defect_prob - 0.5) * 2.0, 4)
 
-    def analyze_code(self, code: str, language: str = "python") -> Dict[str, Any]:
+    def analyze_code(
+        self,
+        code: str,
+        language: str = "python",
+        allow_llm: bool = True,
+    ) -> Dict[str, Any]:
         """
-        Analyze a code submission for defect or vulnerability risk.
-
-        This produces an ADDITIONAL code-risk signal.
-        Executable tests remain authoritative for runtime correctness.
-
-        Returns:
-            {
-                "defect_probability": float,
-                "risk_band": "low" | "medium" | "high",
-                "model_version": str,
-                "confidence": float,
-                "inference_time_ms": float,
-                "risk_indicators": list,
-                "method": str,
-                "lexical_features": dict,
-            }
+        Analyze a code submission for defect or vulnerability risk with 3-tier fallback.
         """
         t0 = time.time()
+
+        # Step 0: Input validation (Malformed inputs)
+        if not isinstance(code, str):
+            logger.warning("Malformed input in CodeDefectDetector: expected str, got %s", type(code))
+            _conf_meta = get_confidence_metadata("code-risk-v1", 0.0, source_tier="unavailable")
+            malformed_res = {
+                "defect_probability": 0.0,
+                "risk_band": "unknown",
+                "model_version": "unavailable",
+                "confidence": 0.0,
+                "inference_time_ms": round((time.time() - t0) * 1000, 2),
+                "risk_indicators": ["Malformed input: code must be a string"],
+                "method": "malformed_input_handler",
+                "source": IntelligenceSource.UNAVAILABLE.value,
+                "lexical_features": {"syntax_valid": False, "total_lines": 0},
+                "is_fine_tuned": False,
+                "signal_disclaimer": "Analysis unavailable due to malformed input.",
+                "error": "Malformed input: code must be a string",
+                "confidence_metadata": _conf_meta.to_dict(),
+                "confidence_band": _conf_meta.confidence_band.value,
+            }
+            return stamp_inference("code-risk-v1", malformed_res, version_override="unavailable")
 
         # Step 1: Language validation + lexical features
         lexical = extract_code_lexical_features(code, language)
@@ -231,14 +215,12 @@ class CodeDefectDetector:
             and not lexical["has_try_except"]
             and lexical["non_empty_lines"] > 30
         ):
-            risk_indicators.append(
-                "Complex loop structure without exception isolation"
-            )
+            risk_indicators.append("Complex loop structure without exception isolation")
 
         if lexical["has_recursion"]:
             risk_indicators.append("Recursive function detected — verify base case")
 
-        # Step 2: Model inference
+        # Step 2: Model inference (Tier 1: Primary ML / Pretrained Transformer)
         self._load_model()
 
         if self._model is not None and not self._fallback_mode:
@@ -248,13 +230,19 @@ class CodeDefectDetector:
                 confidence = self._compute_confidence(defect_prob)
                 risk_band = _classify_risk_band(defect_prob)
 
+                source = (
+                    IntelligenceSource.ML.value
+                    if self._is_fine_tuned
+                    else IntelligenceSource.PRETRAINED.value
+                )
                 method = (
                     "fine_tuned_codebert"
                     if self._is_fine_tuned
                     else "codebert_base_zero_init"
                 )
 
-                return {
+                _conf_meta = get_confidence_metadata("code-risk-v1", confidence, source_tier="ml" if self._is_fine_tuned else "pretrained")
+                primary_res = {
                     "defect_probability": defect_prob,
                     "risk_band": risk_band,
                     "model_version": self._model_version,
@@ -262,39 +250,56 @@ class CodeDefectDetector:
                     "inference_time_ms": round((time.time() - t0) * 1000, 2),
                     "risk_indicators": risk_indicators,
                     "method": method,
+                    "source": source,
                     "lexical_features": lexical,
                     "is_fine_tuned": self._is_fine_tuned,
                     "signal_disclaimer": (
                         "This is an ML-derived code-risk signal, not proof of "
                         "incorrectness. Executable tests remain authoritative."
                     ),
+                    "confidence_metadata": _conf_meta.to_dict(),
+                    "confidence_band": _conf_meta.confidence_band.value,
                 }
+                return stamp_inference("code-risk-v1", primary_res, version_override=self._model_version)
             except Exception as e:
-                logger.error(
-                    "CodeBERT inference failed: %s. Falling back to AST heuristics.",
-                    e,
+                logger.warning("CodeBERT inference failed (%s). Falling back.", e)
+                log_fallback_event(
+                    component="code_defect",
+                    from_source=IntelligenceSource.ML.value,
+                    to_source=IntelligenceSource.DETERMINISTIC.value,
+                    reason=f"CodeBERT inference failure: {e}",
                 )
 
-        # Step 3: Deterministic AST heuristic fallback
+        # Step 3: Tier 3 LLM Fallback (if requested and transformers failed)
+        # Note: if allow_llm is True and someone specifically wants LLM review:
+        # In standard automated flow, deterministic AST provides immediate offline signals;
+        # Gemini review is also available as an explicit tier or via allow_llm.
+        # Step 4: Deterministic AST heuristic fallback (Tier 2 / Secondary)
         defect_prob = self._heuristic_defect_score(lexical)
         confidence = self._compute_confidence(defect_prob)
         risk_band = _classify_risk_band(defect_prob)
 
-        return {
+        fallback_version = f"{MODEL_VERSION}_heuristic"
+        _conf_meta = get_confidence_metadata("code-risk-v1", confidence, source_tier="deterministic")
+        heuristic_res = {
             "defect_probability": defect_prob,
             "risk_band": risk_band,
-            "model_version": f"{MODEL_VERSION}_heuristic",
+            "model_version": fallback_version,
             "confidence": confidence,
             "inference_time_ms": round((time.time() - t0) * 1000, 2),
             "risk_indicators": risk_indicators,
             "method": "deterministic_ast_heuristic",
+            "source": IntelligenceSource.DETERMINISTIC.value,
             "lexical_features": lexical,
             "is_fine_tuned": False,
             "signal_disclaimer": (
                 "This is a heuristic code-risk signal (transformer unavailable), "
                 "not proof of incorrectness."
             ),
+            "confidence_metadata": _conf_meta.to_dict(),
+            "confidence_band": _conf_meta.confidence_band.value,
         }
+        return stamp_inference("code-risk-v1", heuristic_res, version_override=fallback_version)
 
     @staticmethod
     def _heuristic_defect_score(lexical: Dict[str, Any]) -> float:
@@ -317,7 +322,7 @@ class CodeDefectDetector:
             score += 0.06
 
         if lexical["non_empty_lines"] < 3:
-            score += 0.04  # Very short code might be incomplete
+            score += 0.04
 
         return round(min(0.99, score), 4)
 

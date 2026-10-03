@@ -61,6 +61,11 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { Skeleton } from "@/components/ui/skeleton"
 import { apiClient, LongitudinalAnalyticsResponse, AnalyticsFilterOptions, AnalyticsFilterParams, NextPracticeRecommendation, SkillTrendSummary, RepeatedWeakness } from "@/lib/api-client"
 import { useAuth } from "@/hooks/use-auth"
+import {
+  MLSkillIntelligenceCard,
+  MLExplanationContainer,
+  MLAdaptiveExplanation,
+} from "@/components/ui/ml-explanation"
 
 export default function LongitudinalAnalyticsPage() {
   const { userId, isLoading: authLoading } = useAuth({ redirectIfUnauthenticated: true })
@@ -470,17 +475,23 @@ export default function LongitudinalAnalyticsPage() {
                       {rec.target_skill}
                     </CardTitle>
                     <CardDescription className="text-xs text-foreground/80 font-medium">
-                      {rec.learning_objective}
+                      Next question targets {rec.target_skill.toLowerCase()} because {rec.rationale.toLowerCase()}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-4 pt-1 space-y-3">
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {rec.rationale}
-                    </p>
-                    <div className="rounded-md bg-muted/60 p-2 text-[11px] text-muted-foreground font-mono">
-                      <span className="font-semibold text-foreground">Evidence: </span>
-                      {rec.evidence_context}
-                    </div>
+                    <MLExplanationContainer title={`How this was prioritized (${rec.target_skill})`}>
+                      <div className="space-y-1.5 text-xs font-mono">
+                        <div className="p-2 rounded bg-muted/40 border border-border/40">
+                          <span className="text-[9px] text-muted-foreground block uppercase">Evidence Context</span>
+                          <span className="text-foreground/90 font-sans">{rec.evidence_context}</span>
+                        </div>
+                        <div className="p-2 rounded bg-muted/40 border border-border/40">
+                          <span className="text-[9px] text-muted-foreground block uppercase">Objective</span>
+                          <span className="text-foreground/90 font-sans">{rec.learning_objective}</span>
+                        </div>
+                      </div>
+                    </MLExplanationContainer>
+
                     <div className="pt-1">
                       <Link
                         href={`/practice?topic=${encodeURIComponent(rec.target_skill)}&difficulty=${rec.recommended_difficulty}&type=${rec.question_type}`}
@@ -782,77 +793,16 @@ export default function LongitudinalAnalyticsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {data.skill_trends.map((skill) => (
-                <Card key={skill.skill_name} className="border shadow-sm">
-                  <CardHeader className="p-4 pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-bold text-foreground">
-                        {skill.skill_name}
-                      </CardTitle>
-                      <Badge
-                        variant="secondary"
-                        className={`text-[10px] font-semibold ${
-                          skill.confidence === "high confidence"
-                            ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
-                            : skill.confidence === "medium confidence"
-                            ? "bg-blue-500/20 text-blue-700 dark:text-blue-300"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {skill.confidence}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-1 space-y-3 text-xs">
-                    <div className="flex items-baseline justify-between">
-                      <div>
-                        <span className="text-2xl font-bold font-mono text-primary">
-                          {skill.decayed_proficiency}%
-                        </span>
-                        <span className="text-[11px] text-muted-foreground ml-1.5">
-                          decayed proficiency
-                        </span>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] font-semibold ${
-                          skill.trend_status === "demonstrated_growth"
-                            ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                            : skill.trend_status === "skill_regression"
-                            ? "border-rose-500/30 text-rose-600 dark:text-rose-400"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        {skill.trend_status === "demonstrated_growth" && <TrendingUp className="mr-1 h-3 w-3 inline" />}
-                        {skill.trend_status === "skill_regression" && <TrendingDown className="mr-1 h-3 w-3 inline" />}
-                        {skill.net_delta > 0 ? `+${skill.net_delta}` : skill.net_delta} pts
-                      </Badge>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-1 bg-muted/40 p-2 rounded text-[11px] text-center">
-                      <div>
-                        <span className="text-muted-foreground block text-[10px]">Recent Avg</span>
-                        <span className="font-semibold font-mono">{skill.recent_average}%</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[10px]">Hist Avg</span>
-                        <span className="font-semibold font-mono">{skill.historical_average}%</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[10px]">Volatility (σ)</span>
-                        <span className="font-semibold font-mono">±{skill.volatility_sd}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t">
-                      <span>{skill.evidence_count} evaluated evidence samples</span>
-                      {skill.last_evaluated && (
-                        <span>
-                          {new Date(skill.last_evaluated).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                <MLSkillIntelligenceCard
+                  key={skill.skill_name}
+                  skillName={skill.skill_name}
+                  estimatedMastery={skill.decayed_proficiency}
+                  confidence={skill.confidence}
+                  evidenceCount={skill.evidence_count}
+                  recentAvg={skill.recent_average}
+                  historicalAvg={skill.historical_average}
+                  trend={skill.trend_status.replace('_', ' ')}
+                />
               ))}
             </div>
           </section>

@@ -54,6 +54,10 @@ class MLInferenceEngine:
         t0 = time.time()
         res = self.concept_analyzer.evaluate_concepts(candidate_answer, expected_concepts)
         res["latency_ms"] = round((time.time() - t0) * 1000.0, 2)
+        res["concept_scores"] = {
+            r["concept"]: r["concept_score"]
+            for r in res.get("concept_results", [])
+        }
         return res
 
     def hybrid_answer_analysis(
@@ -99,6 +103,7 @@ class MLInferenceEngine:
         t0 = time.time()
         res = self.defect_detector.analyze_code(code, language=language)
         res["latency_ms"] = round((time.time() - t0) * 1000.0, 2)
+        res["defect_risk_score"] = res.get("defect_probability", 0.0)
         return res
 
     def transcribe_audio(self, audio_data: Any) -> Dict[str, Any]:

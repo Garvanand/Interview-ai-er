@@ -1,0 +1,1310 @@
+{
+  "model_name": "QuestionSkillClassifier",
+  "model_alias": "question-skill-v1",
+  "total_samples": 13,
+  "primary_metric": 0.0,
+  "macro_f1": 0.3944,
+  "confusion_matrix": {
+    "labels": [
+      "Skill_Present",
+      "Skill_Absent"
+    ],
+    "raw_matrix": [
+      [
+        8,
+        18
+      ],
+      [
+        10,
+        120
+      ]
+    ],
+    "normalized_matrix": [
+      [
+        0.3077,
+        0.6923
+      ],
+      [
+        0.0769,
+        0.9231
+      ]
+    ]
+  },
+  "per_class_metrics": {
+    "arrays": {
+      "label": "arrays",
+      "precision": 1.0,
+      "recall": 0.2,
+      "f1_score": 0.3333,
+      "support": 5
+    },
+    "hashing": {
+      "label": "hashing",
+      "precision": 1.0,
+      "recall": 0.3333,
+      "f1_score": 0.5,
+      "support": 3
+    },
+    "strings": {
+      "label": "strings",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 2
+    },
+    "trees": {
+      "label": "trees",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 1
+    },
+    "graphs": {
+      "label": "graphs",
+      "precision": 0.3333,
+      "recall": 0.5,
+      "f1_score": 0.4,
+      "support": 2
+    },
+    "dynamic_programming": {
+      "label": "dynamic_programming",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 1
+    },
+    "two_pointers": {
+      "label": "two_pointers",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 2
+    },
+    "sliding_window": {
+      "label": "sliding_window",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 1
+    },
+    "binary_search": {
+      "label": "binary_search",
+      "precision": 0.5,
+      "recall": 0.5,
+      "f1_score": 0.5,
+      "support": 2
+    },
+    "heaps": {
+      "label": "heaps",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 1
+    },
+    "recursion": {
+      "label": "recursion",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 3
+    },
+    "complexity": {
+      "label": "complexity",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 3
+    }
+  },
+  "failure_category_counts": {
+    "missed_skill": 13,
+    "incorrect_skill": 13,
+    "ambiguous_tag": 7,
+    "correct": 0
+  },
+  "failure_cases": [
+    {
+      "id": "skill_01",
+      "question": "Implement an algorithm to traverse a binary search tree in post-order and level-order.",
+      "expected_skills": [
+        "trees",
+        "recursion"
+      ],
+      "predicted_skills": [
+        "data_structures",
+        "search",
+        "binary_search",
+        "algorithms"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill",
+        "ambiguous_tag"
+      ],
+      "confidence": 0.82,
+      "margin": 0.07,
+      "notes": "Unambiguous tree structure"
+    },
+    {
+      "id": "skill_02",
+      "question": "Given an array of strings, group anagrams together using character frequency counts in a hash table.",
+      "expected_skills": [
+        "strings",
+        "hashing",
+        "arrays"
+      ],
+      "predicted_skills": [
+        "data_structures",
+        "hashing",
+        "algorithms",
+        "strings"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill",
+        "ambiguous_tag"
+      ],
+      "confidence": 0.79,
+      "margin": 0.02,
+      "notes": "Multi-skill hashing and string processing"
+    },
+    {
+      "id": "skill_03",
+      "question": "Find the shortest path in a weighted graph using Dijkstra's algorithm with a priority queue.",
+      "expected_skills": [
+        "graphs",
+        "heaps"
+      ],
+      "predicted_skills": [
+        "queues",
+        "data_structures",
+        "algorithms",
+        "recursion"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill",
+        "ambiguous_tag"
+      ],
+      "confidence": 0.87,
+      "margin": 0.09,
+      "notes": "Classic graph and heap pairing"
+    },
+    {
+      "id": "skill_04",
+      "question": "Find the maximum subarray sum using Kadane's dynamic programming algorithm.",
+      "expected_skills": [
+        "dynamic_programming",
+        "arrays"
+      ],
+      "predicted_skills": [
+        "recursion",
+        "dynamic_programming",
+        "algorithms",
+        "complexity"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill",
+        "ambiguous_tag"
+      ],
+      "confidence": 0.9,
+      "margin": 0.07,
+      "notes": "1D dynamic programming on arrays"
+    },
+    {
+      "id": "skill_missed_01",
+      "question": "Given a sorted array of distinct integers, find two numbers that sum up to target without using extra memory.",
+      "expected_skills": [
+        "two_pointers",
+        "binary_search",
+        "arrays"
+      ],
+      "predicted_skills": [
+        "search",
+        "binary_search",
+        "algorithms",
+        "arrays"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill"
+      ],
+      "confidence": 0.91,
+      "margin": 0.13,
+      "notes": "Often model tags 'arrays' but misses 'two_pointers' or 'binary_search' because explicit pointer words are minimal"
+    },
+    {
+      "id": "skill_missed_02",
+      "question": "Find the length of the longest substring without any repeating characters.",
+      "expected_skills": [
+        "strings",
+        "hashing",
+        "sliding_window"
+      ],
+      "predicted_skills": [
+        "two_pointers",
+        "strings",
+        "algorithms",
+        "sliding_window"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill",
+        "ambiguous_tag"
+      ],
+      "confidence": 0.91,
+      "margin": 0.03,
+      "notes": "Model frequently detects 'strings' but misses 'sliding_window' without explicit window keyword"
+    },
+    {
+      "id": "skill_missed_03",
+      "question": "Find the median of two sorted arrays of different sizes in O(log(min(n, m))) time.",
+      "expected_skills": [
+        "binary_search",
+        "arrays",
+        "complexity"
+      ],
+      "predicted_skills": [
+        "search",
+        "data_structures",
+        "algorithms",
+        "sorting"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill",
+        "ambiguous_tag"
+      ],
+      "confidence": 0.72,
+      "margin": 0.04,
+      "notes": "Requires binary search partition, but model often misses binary_search when array is primary"
+    },
+    {
+      "id": "skill_inc_01",
+      "question": "Explain how garbage collection in the Java Virtual Machine marks and sweeps unreferenced object trees in memory.",
+      "expected_skills": [
+        "complexity"
+      ],
+      "predicted_skills": [
+        "data_structures",
+        "algorithms"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill"
+      ],
+      "confidence": 0.78,
+      "margin": 0.5,
+      "notes": "Mentions 'trees', causing incorrect prediction of data_structures 'trees'"
+    },
+    {
+      "id": "skill_inc_02",
+      "question": "Visualize latency distributions by plotting a dependency graph of microservice telemetry metrics.",
+      "expected_skills": [
+        "complexity"
+      ],
+      "predicted_skills": [
+        "data_structures",
+        "graphs",
+        "recursion",
+        "algorithms"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill",
+        "ambiguous_tag"
+      ],
+      "confidence": 0.91,
+      "margin": 0.04,
+      "notes": "Mentions 'graph' metaphorically / charting, causing incorrect algorithmic 'graphs' tag"
+    },
+    {
+      "id": "skill_inc_03",
+      "question": "Implement an API rate limiter using a sliding window counter algorithm stored in Redis.",
+      "expected_skills": [
+        "hashing"
+      ],
+      "predicted_skills": [
+        "recursion",
+        "data_structures",
+        "algorithms",
+        "search"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill"
+      ],
+      "confidence": 0.79,
+      "margin": 0.33,
+      "notes": "Mentions 'sliding window', which incorrectly triggers algorithm sliding_window rather than systems hashing"
+    },
+    {
+      "id": "skill_amb_01",
+      "question": "Generate all valid subsets of a set of integers without duplicates.",
+      "expected_skills": [
+        "backtracking",
+        "recursion"
+      ],
+      "predicted_skills": [
+        "backtracking",
+        "graphs",
+        "data_structures",
+        "algorithms"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill"
+      ],
+      "confidence": 0.77,
+      "margin": 0.41,
+      "notes": "Borderline overlap between backtracking, recursion, and dynamic_programming"
+    },
+    {
+      "id": "skill_amb_02",
+      "question": "Container With Most Water: Find two lines that together with the x-axis form a container containing the most water.",
+      "expected_skills": [
+        "two_pointers",
+        "greedy",
+        "arrays"
+      ],
+      "predicted_skills": [
+        "data_structures",
+        "algorithms"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill"
+      ],
+      "confidence": 0.84,
+      "margin": 0.41,
+      "notes": "Multi-skill crossover between arrays, two_pointers, and greedy choices"
+    },
+    {
+      "id": "skill_amb_03",
+      "question": "Find all bridge edges and articulation vertices in an undirected communication network.",
+      "expected_skills": [
+        "graphs",
+        "recursion"
+      ],
+      "predicted_skills": [
+        "trees",
+        "graphs",
+        "data_structures",
+        "algorithms"
+      ],
+      "categories": [
+        "missed_skill",
+        "incorrect_skill"
+      ],
+      "confidence": 0.9,
+      "margin": 0.29,
+      "notes": "Tarjan's DFS bridge algorithm: DFS recursion vs graph connectivity ambiguity"
+    }
+  ],
+  "hard_examples": [
+    {
+      "example_id": "skill_01",
+      "input_snippet": "Implement an algorithm to traverse a binary search tree in post-order and level-order.",
+      "true_label": [
+        "trees",
+        "recursion"
+      ],
+      "predicted_label": [
+        "data_structures",
+        "search",
+        "binary_search",
+        "algorithms"
+      ],
+      "confidence": 0.82,
+      "margin": 0.07,
+      "error_category": "missed_skill; incorrect_skill; ambiguous_tag",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['trees', 'recursion']; Extra: ['search', 'data_structures', 'algorithms', 'binary_search']. Margin=0.07. Notes: Unambiguous tree structure"
+    },
+    {
+      "example_id": "skill_02",
+      "input_snippet": "Given an array of strings, group anagrams together using character frequency counts in a hash table.",
+      "true_label": [
+        "strings",
+        "hashing",
+        "arrays"
+      ],
+      "predicted_label": [
+        "data_structures",
+        "hashing",
+        "algorithms",
+        "strings"
+      ],
+      "confidence": 0.79,
+      "margin": 0.02,
+      "error_category": "missed_skill; incorrect_skill; ambiguous_tag",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['arrays']; Extra: ['data_structures', 'algorithms']. Margin=0.02. Notes: Multi-skill hashing and string processing"
+    },
+    {
+      "example_id": "skill_03",
+      "input_snippet": "Find the shortest path in a weighted graph using Dijkstra's algorithm with a priority queue.",
+      "true_label": [
+        "graphs",
+        "heaps"
+      ],
+      "predicted_label": [
+        "queues",
+        "data_structures",
+        "algorithms",
+        "recursion"
+      ],
+      "confidence": 0.87,
+      "margin": 0.09,
+      "error_category": "missed_skill; incorrect_skill; ambiguous_tag",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['graphs', 'heaps']; Extra: ['queues', 'data_structures', 'algorithms', 'recursion']. Margin=0.09. Notes: Classic graph and heap pairing"
+    },
+    {
+      "example_id": "skill_04",
+      "input_snippet": "Find the maximum subarray sum using Kadane's dynamic programming algorithm.",
+      "true_label": [
+        "dynamic_programming",
+        "arrays"
+      ],
+      "predicted_label": [
+        "recursion",
+        "dynamic_programming",
+        "algorithms",
+        "complexity"
+      ],
+      "confidence": 0.9,
+      "margin": 0.07,
+      "error_category": "missed_skill; incorrect_skill; ambiguous_tag",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['arrays']; Extra: ['algorithms', 'recursion', 'complexity']. Margin=0.07. Notes: 1D dynamic programming on arrays"
+    },
+    {
+      "example_id": "skill_missed_01",
+      "input_snippet": "Given a sorted array of distinct integers, find two numbers that sum up to target without using extra memory.",
+      "true_label": [
+        "two_pointers",
+        "binary_search",
+        "arrays"
+      ],
+      "predicted_label": [
+        "search",
+        "binary_search",
+        "algorithms",
+        "arrays"
+      ],
+      "confidence": 0.91,
+      "margin": 0.13,
+      "error_category": "missed_skill; incorrect_skill",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['two_pointers']; Extra: ['search', 'algorithms']. Margin=0.13. Notes: Often model tags 'arrays' but misses 'two_pointers' or 'binary_search' because explicit pointer words are minimal"
+    },
+    {
+      "example_id": "skill_missed_02",
+      "input_snippet": "Find the length of the longest substring without any repeating characters.",
+      "true_label": [
+        "strings",
+        "hashing",
+        "sliding_window"
+      ],
+      "predicted_label": [
+        "two_pointers",
+        "strings",
+        "algorithms",
+        "sliding_window"
+      ],
+      "confidence": 0.91,
+      "margin": 0.03,
+      "error_category": "missed_skill; incorrect_skill; ambiguous_tag",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['hashing']; Extra: ['two_pointers', 'algorithms']. Margin=0.03. Notes: Model frequently detects 'strings' but misses 'sliding_window' without explicit window keyword"
+    },
+    {
+      "example_id": "skill_missed_03",
+      "input_snippet": "Find the median of two sorted arrays of different sizes in O(log(min(n, m))) time.",
+      "true_label": [
+        "binary_search",
+        "arrays",
+        "complexity"
+      ],
+      "predicted_label": [
+        "search",
+        "data_structures",
+        "algorithms",
+        "sorting"
+      ],
+      "confidence": 0.72,
+      "margin": 0.04,
+      "error_category": "missed_skill; incorrect_skill; ambiguous_tag",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['binary_search', 'arrays', 'complexity']; Extra: ['search', 'data_structures', 'algorithms', 'sorting']. Margin=0.04. Notes: Requires binary search partition, but model often misses binary_search when array is primary"
+    },
+    {
+      "example_id": "skill_inc_01",
+      "input_snippet": "Explain how garbage collection in the Java Virtual Machine marks and sweeps unreferenced object trees in memory.",
+      "true_label": [
+        "complexity"
+      ],
+      "predicted_label": [
+        "data_structures",
+        "algorithms"
+      ],
+      "confidence": 0.78,
+      "margin": 0.5,
+      "error_category": "missed_skill; incorrect_skill",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['complexity']; Extra: ['data_structures', 'algorithms']. Margin=0.50. Notes: Mentions 'trees', causing incorrect prediction of data_structures 'trees'"
+    },
+    {
+      "example_id": "skill_inc_02",
+      "input_snippet": "Visualize latency distributions by plotting a dependency graph of microservice telemetry metrics.",
+      "true_label": [
+        "complexity"
+      ],
+      "predicted_label": [
+        "data_structures",
+        "graphs",
+        "recursion",
+        "algorithms"
+      ],
+      "confidence": 0.91,
+      "margin": 0.04,
+      "error_category": "missed_skill; incorrect_skill; ambiguous_tag",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['complexity']; Extra: ['graphs', 'data_structures', 'algorithms', 'recursion']. Margin=0.04. Notes: Mentions 'graph' metaphorically / charting, causing incorrect algorithmic 'graphs' tag"
+    },
+    {
+      "example_id": "skill_inc_03",
+      "input_snippet": "Implement an API rate limiter using a sliding window counter algorithm stored in Redis.",
+      "true_label": [
+        "hashing"
+      ],
+      "predicted_label": [
+        "recursion",
+        "data_structures",
+        "algorithms",
+        "search"
+      ],
+      "confidence": 0.79,
+      "margin": 0.33,
+      "error_category": "missed_skill; incorrect_skill",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['hashing']; Extra: ['algorithms', 'data_structures', 'recursion', 'search']. Margin=0.33. Notes: Mentions 'sliding window', which incorrectly triggers algorithm sliding_window rather than systems hashing"
+    },
+    {
+      "example_id": "skill_amb_01",
+      "input_snippet": "Generate all valid subsets of a set of integers without duplicates.",
+      "true_label": [
+        "backtracking",
+        "recursion"
+      ],
+      "predicted_label": [
+        "backtracking",
+        "graphs",
+        "data_structures",
+        "algorithms"
+      ],
+      "confidence": 0.77,
+      "margin": 0.41,
+      "error_category": "missed_skill; incorrect_skill",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['recursion']; Extra: ['graphs', 'data_structures', 'algorithms']. Margin=0.41. Notes: Borderline overlap between backtracking, recursion, and dynamic_programming"
+    },
+    {
+      "example_id": "skill_amb_02",
+      "input_snippet": "Container With Most Water: Find two lines that together with the x-axis form a container containing the most water.",
+      "true_label": [
+        "two_pointers",
+        "greedy",
+        "arrays"
+      ],
+      "predicted_label": [
+        "data_structures",
+        "algorithms"
+      ],
+      "confidence": 0.84,
+      "margin": 0.41,
+      "error_category": "missed_skill; incorrect_skill",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['two_pointers', 'greedy', 'arrays']; Extra: ['data_structures', 'algorithms']. Margin=0.41. Notes: Multi-skill crossover between arrays, two_pointers, and greedy choices"
+    },
+    {
+      "example_id": "skill_amb_03",
+      "input_snippet": "Find all bridge edges and articulation vertices in an undirected communication network.",
+      "true_label": [
+        "graphs",
+        "recursion"
+      ],
+      "predicted_label": [
+        "trees",
+        "graphs",
+        "data_structures",
+        "algorithms"
+      ],
+      "confidence": 0.9,
+      "margin": 0.29,
+      "error_category": "missed_skill; incorrect_skill",
+      "root_cause_explanation": "Multi-label mismatch. Missed: ['recursion']; Extra: ['trees', 'data_structures', 'algorithms']. Margin=0.29. Notes: Tarjan's DFS bridge algorithm: DFS recursion vs graph connectivity ambiguity"
+    }
+  ],
+  "false_positives": [
+    {
+      "id": "skill_01",
+      "skill": "search",
+      "question": "Implement an algorithm to traverse a binary search tree in post-order and level-...",
+      "expected_skills": [
+        "trees",
+        "recursion"
+      ],
+      "reason": "Predicted skill 'search' was not in ground truth."
+    },
+    {
+      "id": "skill_01",
+      "skill": "data_structures",
+      "question": "Implement an algorithm to traverse a binary search tree in post-order and level-...",
+      "expected_skills": [
+        "trees",
+        "recursion"
+      ],
+      "reason": "Predicted skill 'data_structures' was not in ground truth."
+    },
+    {
+      "id": "skill_01",
+      "skill": "algorithms",
+      "question": "Implement an algorithm to traverse a binary search tree in post-order and level-...",
+      "expected_skills": [
+        "trees",
+        "recursion"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    },
+    {
+      "id": "skill_01",
+      "skill": "binary_search",
+      "question": "Implement an algorithm to traverse a binary search tree in post-order and level-...",
+      "expected_skills": [
+        "trees",
+        "recursion"
+      ],
+      "reason": "Predicted skill 'binary_search' was not in ground truth."
+    },
+    {
+      "id": "skill_02",
+      "skill": "data_structures",
+      "question": "Given an array of strings, group anagrams together using character frequency cou...",
+      "expected_skills": [
+        "strings",
+        "hashing",
+        "arrays"
+      ],
+      "reason": "Predicted skill 'data_structures' was not in ground truth."
+    },
+    {
+      "id": "skill_02",
+      "skill": "algorithms",
+      "question": "Given an array of strings, group anagrams together using character frequency cou...",
+      "expected_skills": [
+        "strings",
+        "hashing",
+        "arrays"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    },
+    {
+      "id": "skill_03",
+      "skill": "queues",
+      "question": "Find the shortest path in a weighted graph using Dijkstra's algorithm with a pri...",
+      "expected_skills": [
+        "graphs",
+        "heaps"
+      ],
+      "reason": "Predicted skill 'queues' was not in ground truth."
+    },
+    {
+      "id": "skill_03",
+      "skill": "data_structures",
+      "question": "Find the shortest path in a weighted graph using Dijkstra's algorithm with a pri...",
+      "expected_skills": [
+        "graphs",
+        "heaps"
+      ],
+      "reason": "Predicted skill 'data_structures' was not in ground truth."
+    },
+    {
+      "id": "skill_03",
+      "skill": "algorithms",
+      "question": "Find the shortest path in a weighted graph using Dijkstra's algorithm with a pri...",
+      "expected_skills": [
+        "graphs",
+        "heaps"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    },
+    {
+      "id": "skill_03",
+      "skill": "recursion",
+      "question": "Find the shortest path in a weighted graph using Dijkstra's algorithm with a pri...",
+      "expected_skills": [
+        "graphs",
+        "heaps"
+      ],
+      "reason": "Predicted skill 'recursion' was not in ground truth."
+    },
+    {
+      "id": "skill_04",
+      "skill": "algorithms",
+      "question": "Find the maximum subarray sum using Kadane's dynamic programming algorithm....",
+      "expected_skills": [
+        "dynamic_programming",
+        "arrays"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    },
+    {
+      "id": "skill_04",
+      "skill": "recursion",
+      "question": "Find the maximum subarray sum using Kadane's dynamic programming algorithm....",
+      "expected_skills": [
+        "dynamic_programming",
+        "arrays"
+      ],
+      "reason": "Predicted skill 'recursion' was not in ground truth."
+    },
+    {
+      "id": "skill_04",
+      "skill": "complexity",
+      "question": "Find the maximum subarray sum using Kadane's dynamic programming algorithm....",
+      "expected_skills": [
+        "dynamic_programming",
+        "arrays"
+      ],
+      "reason": "Predicted skill 'complexity' was not in ground truth."
+    },
+    {
+      "id": "skill_missed_01",
+      "skill": "search",
+      "question": "Given a sorted array of distinct integers, find two numbers that sum up to targe...",
+      "expected_skills": [
+        "two_pointers",
+        "binary_search",
+        "arrays"
+      ],
+      "reason": "Predicted skill 'search' was not in ground truth."
+    },
+    {
+      "id": "skill_missed_01",
+      "skill": "algorithms",
+      "question": "Given a sorted array of distinct integers, find two numbers that sum up to targe...",
+      "expected_skills": [
+        "two_pointers",
+        "binary_search",
+        "arrays"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    },
+    {
+      "id": "skill_missed_02",
+      "skill": "two_pointers",
+      "question": "Find the length of the longest substring without any repeating characters....",
+      "expected_skills": [
+        "strings",
+        "hashing",
+        "sliding_window"
+      ],
+      "reason": "Predicted skill 'two_pointers' was not in ground truth."
+    },
+    {
+      "id": "skill_missed_02",
+      "skill": "algorithms",
+      "question": "Find the length of the longest substring without any repeating characters....",
+      "expected_skills": [
+        "strings",
+        "hashing",
+        "sliding_window"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    },
+    {
+      "id": "skill_missed_03",
+      "skill": "search",
+      "question": "Find the median of two sorted arrays of different sizes in O(log(min(n, m))) tim...",
+      "expected_skills": [
+        "binary_search",
+        "arrays",
+        "complexity"
+      ],
+      "reason": "Predicted skill 'search' was not in ground truth."
+    },
+    {
+      "id": "skill_missed_03",
+      "skill": "data_structures",
+      "question": "Find the median of two sorted arrays of different sizes in O(log(min(n, m))) tim...",
+      "expected_skills": [
+        "binary_search",
+        "arrays",
+        "complexity"
+      ],
+      "reason": "Predicted skill 'data_structures' was not in ground truth."
+    },
+    {
+      "id": "skill_missed_03",
+      "skill": "algorithms",
+      "question": "Find the median of two sorted arrays of different sizes in O(log(min(n, m))) tim...",
+      "expected_skills": [
+        "binary_search",
+        "arrays",
+        "complexity"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    },
+    {
+      "id": "skill_missed_03",
+      "skill": "sorting",
+      "question": "Find the median of two sorted arrays of different sizes in O(log(min(n, m))) tim...",
+      "expected_skills": [
+        "binary_search",
+        "arrays",
+        "complexity"
+      ],
+      "reason": "Predicted skill 'sorting' was not in ground truth."
+    },
+    {
+      "id": "skill_inc_01",
+      "skill": "data_structures",
+      "question": "Explain how garbage collection in the Java Virtual Machine marks and sweeps unre...",
+      "expected_skills": [
+        "complexity"
+      ],
+      "reason": "Predicted skill 'data_structures' was not in ground truth."
+    },
+    {
+      "id": "skill_inc_01",
+      "skill": "algorithms",
+      "question": "Explain how garbage collection in the Java Virtual Machine marks and sweeps unre...",
+      "expected_skills": [
+        "complexity"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    },
+    {
+      "id": "skill_inc_02",
+      "skill": "graphs",
+      "question": "Visualize latency distributions by plotting a dependency graph of microservice t...",
+      "expected_skills": [
+        "complexity"
+      ],
+      "reason": "Predicted skill 'graphs' was not in ground truth."
+    },
+    {
+      "id": "skill_inc_02",
+      "skill": "data_structures",
+      "question": "Visualize latency distributions by plotting a dependency graph of microservice t...",
+      "expected_skills": [
+        "complexity"
+      ],
+      "reason": "Predicted skill 'data_structures' was not in ground truth."
+    },
+    {
+      "id": "skill_inc_02",
+      "skill": "algorithms",
+      "question": "Visualize latency distributions by plotting a dependency graph of microservice t...",
+      "expected_skills": [
+        "complexity"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    },
+    {
+      "id": "skill_inc_02",
+      "skill": "recursion",
+      "question": "Visualize latency distributions by plotting a dependency graph of microservice t...",
+      "expected_skills": [
+        "complexity"
+      ],
+      "reason": "Predicted skill 'recursion' was not in ground truth."
+    },
+    {
+      "id": "skill_inc_03",
+      "skill": "algorithms",
+      "question": "Implement an API rate limiter using a sliding window counter algorithm stored in...",
+      "expected_skills": [
+        "hashing"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    },
+    {
+      "id": "skill_inc_03",
+      "skill": "data_structures",
+      "question": "Implement an API rate limiter using a sliding window counter algorithm stored in...",
+      "expected_skills": [
+        "hashing"
+      ],
+      "reason": "Predicted skill 'data_structures' was not in ground truth."
+    },
+    {
+      "id": "skill_inc_03",
+      "skill": "recursion",
+      "question": "Implement an API rate limiter using a sliding window counter algorithm stored in...",
+      "expected_skills": [
+        "hashing"
+      ],
+      "reason": "Predicted skill 'recursion' was not in ground truth."
+    },
+    {
+      "id": "skill_inc_03",
+      "skill": "search",
+      "question": "Implement an API rate limiter using a sliding window counter algorithm stored in...",
+      "expected_skills": [
+        "hashing"
+      ],
+      "reason": "Predicted skill 'search' was not in ground truth."
+    },
+    {
+      "id": "skill_amb_01",
+      "skill": "graphs",
+      "question": "Generate all valid subsets of a set of integers without duplicates....",
+      "expected_skills": [
+        "backtracking",
+        "recursion"
+      ],
+      "reason": "Predicted skill 'graphs' was not in ground truth."
+    },
+    {
+      "id": "skill_amb_01",
+      "skill": "data_structures",
+      "question": "Generate all valid subsets of a set of integers without duplicates....",
+      "expected_skills": [
+        "backtracking",
+        "recursion"
+      ],
+      "reason": "Predicted skill 'data_structures' was not in ground truth."
+    },
+    {
+      "id": "skill_amb_01",
+      "skill": "algorithms",
+      "question": "Generate all valid subsets of a set of integers without duplicates....",
+      "expected_skills": [
+        "backtracking",
+        "recursion"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    },
+    {
+      "id": "skill_amb_02",
+      "skill": "data_structures",
+      "question": "Container With Most Water: Find two lines that together with the x-axis form a c...",
+      "expected_skills": [
+        "two_pointers",
+        "greedy",
+        "arrays"
+      ],
+      "reason": "Predicted skill 'data_structures' was not in ground truth."
+    },
+    {
+      "id": "skill_amb_02",
+      "skill": "algorithms",
+      "question": "Container With Most Water: Find two lines that together with the x-axis form a c...",
+      "expected_skills": [
+        "two_pointers",
+        "greedy",
+        "arrays"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    },
+    {
+      "id": "skill_amb_03",
+      "skill": "trees",
+      "question": "Find all bridge edges and articulation vertices in an undirected communication n...",
+      "expected_skills": [
+        "graphs",
+        "recursion"
+      ],
+      "reason": "Predicted skill 'trees' was not in ground truth."
+    },
+    {
+      "id": "skill_amb_03",
+      "skill": "data_structures",
+      "question": "Find all bridge edges and articulation vertices in an undirected communication n...",
+      "expected_skills": [
+        "graphs",
+        "recursion"
+      ],
+      "reason": "Predicted skill 'data_structures' was not in ground truth."
+    },
+    {
+      "id": "skill_amb_03",
+      "skill": "algorithms",
+      "question": "Find all bridge edges and articulation vertices in an undirected communication n...",
+      "expected_skills": [
+        "graphs",
+        "recursion"
+      ],
+      "reason": "Predicted skill 'algorithms' was not in ground truth."
+    }
+  ],
+  "false_negatives": [
+    {
+      "id": "skill_01",
+      "skill": "trees",
+      "question": "Implement an algorithm to traverse a binary search tree in post-order and level-...",
+      "predicted_skills": [
+        "data_structures",
+        "search",
+        "binary_search",
+        "algorithms"
+      ],
+      "reason": "Expected skill 'trees' was omitted."
+    },
+    {
+      "id": "skill_01",
+      "skill": "recursion",
+      "question": "Implement an algorithm to traverse a binary search tree in post-order and level-...",
+      "predicted_skills": [
+        "data_structures",
+        "search",
+        "binary_search",
+        "algorithms"
+      ],
+      "reason": "Expected skill 'recursion' was omitted."
+    },
+    {
+      "id": "skill_02",
+      "skill": "arrays",
+      "question": "Given an array of strings, group anagrams together using character frequency cou...",
+      "predicted_skills": [
+        "data_structures",
+        "hashing",
+        "algorithms",
+        "strings"
+      ],
+      "reason": "Expected skill 'arrays' was omitted."
+    },
+    {
+      "id": "skill_03",
+      "skill": "graphs",
+      "question": "Find the shortest path in a weighted graph using Dijkstra's algorithm with a pri...",
+      "predicted_skills": [
+        "queues",
+        "data_structures",
+        "algorithms",
+        "recursion"
+      ],
+      "reason": "Expected skill 'graphs' was omitted."
+    },
+    {
+      "id": "skill_03",
+      "skill": "heaps",
+      "question": "Find the shortest path in a weighted graph using Dijkstra's algorithm with a pri...",
+      "predicted_skills": [
+        "queues",
+        "data_structures",
+        "algorithms",
+        "recursion"
+      ],
+      "reason": "Expected skill 'heaps' was omitted."
+    },
+    {
+      "id": "skill_04",
+      "skill": "arrays",
+      "question": "Find the maximum subarray sum using Kadane's dynamic programming algorithm....",
+      "predicted_skills": [
+        "recursion",
+        "dynamic_programming",
+        "algorithms",
+        "complexity"
+      ],
+      "reason": "Expected skill 'arrays' was omitted."
+    },
+    {
+      "id": "skill_missed_01",
+      "skill": "two_pointers",
+      "question": "Given a sorted array of distinct integers, find two numbers that sum up to targe...",
+      "predicted_skills": [
+        "search",
+        "binary_search",
+        "algorithms",
+        "arrays"
+      ],
+      "reason": "Expected skill 'two_pointers' was omitted."
+    },
+    {
+      "id": "skill_missed_02",
+      "skill": "hashing",
+      "question": "Find the length of the longest substring without any repeating characters....",
+      "predicted_skills": [
+        "two_pointers",
+        "strings",
+        "algorithms",
+        "sliding_window"
+      ],
+      "reason": "Expected skill 'hashing' was omitted."
+    },
+    {
+      "id": "skill_missed_03",
+      "skill": "binary_search",
+      "question": "Find the median of two sorted arrays of different sizes in O(log(min(n, m))) tim...",
+      "predicted_skills": [
+        "search",
+        "data_structures",
+        "algorithms",
+        "sorting"
+      ],
+      "reason": "Expected skill 'binary_search' was omitted."
+    },
+    {
+      "id": "skill_missed_03",
+      "skill": "arrays",
+      "question": "Find the median of two sorted arrays of different sizes in O(log(min(n, m))) tim...",
+      "predicted_skills": [
+        "search",
+        "data_structures",
+        "algorithms",
+        "sorting"
+      ],
+      "reason": "Expected skill 'arrays' was omitted."
+    },
+    {
+      "id": "skill_missed_03",
+      "skill": "complexity",
+      "question": "Find the median of two sorted arrays of different sizes in O(log(min(n, m))) tim...",
+      "predicted_skills": [
+        "search",
+        "data_structures",
+        "algorithms",
+        "sorting"
+      ],
+      "reason": "Expected skill 'complexity' was omitted."
+    },
+    {
+      "id": "skill_inc_01",
+      "skill": "complexity",
+      "question": "Explain how garbage collection in the Java Virtual Machine marks and sweeps unre...",
+      "predicted_skills": [
+        "data_structures",
+        "algorithms"
+      ],
+      "reason": "Expected skill 'complexity' was omitted."
+    },
+    {
+      "id": "skill_inc_02",
+      "skill": "complexity",
+      "question": "Visualize latency distributions by plotting a dependency graph of microservice t...",
+      "predicted_skills": [
+        "data_structures",
+        "graphs",
+        "recursion",
+        "algorithms"
+      ],
+      "reason": "Expected skill 'complexity' was omitted."
+    },
+    {
+      "id": "skill_inc_03",
+      "skill": "hashing",
+      "question": "Implement an API rate limiter using a sliding window counter algorithm stored in...",
+      "predicted_skills": [
+        "recursion",
+        "data_structures",
+        "algorithms",
+        "search"
+      ],
+      "reason": "Expected skill 'hashing' was omitted."
+    },
+    {
+      "id": "skill_amb_01",
+      "skill": "recursion",
+      "question": "Generate all valid subsets of a set of integers without duplicates....",
+      "predicted_skills": [
+        "backtracking",
+        "graphs",
+        "data_structures",
+        "algorithms"
+      ],
+      "reason": "Expected skill 'recursion' was omitted."
+    },
+    {
+      "id": "skill_amb_02",
+      "skill": "two_pointers",
+      "question": "Container With Most Water: Find two lines that together with the x-axis form a c...",
+      "predicted_skills": [
+        "data_structures",
+        "algorithms"
+      ],
+      "reason": "Expected skill 'two_pointers' was omitted."
+    },
+    {
+      "id": "skill_amb_02",
+      "skill": "greedy",
+      "question": "Container With Most Water: Find two lines that together with the x-axis form a c...",
+      "predicted_skills": [
+        "data_structures",
+        "algorithms"
+      ],
+      "reason": "Expected skill 'greedy' was omitted."
+    },
+    {
+      "id": "skill_amb_02",
+      "skill": "arrays",
+      "question": "Container With Most Water: Find two lines that together with the x-axis form a c...",
+      "predicted_skills": [
+        "data_structures",
+        "algorithms"
+      ],
+      "reason": "Expected skill 'arrays' was omitted."
+    },
+    {
+      "id": "skill_amb_03",
+      "skill": "recursion",
+      "question": "Find all bridge edges and articulation vertices in an undirected communication n...",
+      "predicted_skills": [
+        "trees",
+        "graphs",
+        "data_structures",
+        "algorithms"
+      ],
+      "reason": "Expected skill 'recursion' was omitted."
+    }
+  ],
+  "confidence_distribution": {
+    "bin_edges": [
+      0.0,
+      0.1,
+      0.2,
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      1.0
+    ],
+    "overall_counts": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      5,
+      3,
+      5
+    ],
+    "correct_counts": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "error_counts": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      5,
+      3,
+      5
+    ],
+    "mean_confidence_overall": 0.8392,
+    "mean_confidence_correct": 0.0,
+    "mean_confidence_error": 0.8392,
+    "calibration_gap": -0.8392
+  }
+}

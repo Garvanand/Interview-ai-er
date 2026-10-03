@@ -1,0 +1,251 @@
+{
+  "model_name": "CodeDefectDetector",
+  "model_alias": "code-risk-v1",
+  "total_samples": 10,
+  "primary_metric": 0.5,
+  "macro_f1": 0.3333,
+  "confusion_matrix": {
+    "labels": [
+      "clean",
+      "defective"
+    ],
+    "raw_matrix": [
+      [
+        0,
+        5
+      ],
+      [
+        0,
+        5
+      ]
+    ],
+    "normalized_matrix": [
+      [
+        0.0,
+        1.0
+      ],
+      [
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "per_class_metrics": {
+    "clean": {
+      "label": "clean",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 5
+    },
+    "defective": {
+      "label": "defective",
+      "precision": 0.5,
+      "recall": 1.0,
+      "f1_score": 0.6667,
+      "support": 5
+    }
+  },
+  "failure_category_counts": {
+    "false_vulnerability": 5,
+    "missed_defect": 0,
+    "correct": 5
+  },
+  "failure_cases": [
+    {
+      "id": "code_clean_01",
+      "code": "def add_numbers(a: int, b: int) -> int:\n    return a + b",
+      "expected": "clean",
+      "predicted": "defective",
+      "defect_probability": 0.5775,
+      "confidence": 0.155,
+      "category": "false_vulnerability",
+      "notes": "Pure basic arithmetic"
+    },
+    {
+      "id": "code_clean_02",
+      "code": "def binary_search(arr, target):\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1",
+      "expected": "clean",
+      "predicted": "defective",
+      "defect_probability": 0.5541,
+      "confidence": 0.1082,
+      "category": "false_vulnerability",
+      "notes": "Standard correct binary search"
+    },
+    {
+      "id": "code_false_vuln_01",
+      "code": "def safe_divide(numerator: float, denominator: float) -> float:\n    if denominator == 0:\n        raise ValueError('Denominator cannot be zero')\n    return numerator / denominator",
+      "expected": "clean",
+      "predicted": "defective",
+      "defect_probability": 0.5756,
+      "confidence": 0.1512,
+      "category": "false_vulnerability",
+      "notes": "Guarded division. Contains 'raise ValueError' and '/' which naive tokenizers flag as high risk"
+    },
+    {
+      "id": "code_false_vuln_02",
+      "code": "def get_first_item(items: list):\n    return items[0] if items else None",
+      "expected": "clean",
+      "predicted": "defective",
+      "defect_probability": 0.5807,
+      "confidence": 0.1614,
+      "category": "false_vulnerability",
+      "notes": "Defensive list indexing with ternary check. Substring 'items[0]' triggers false positive"
+    },
+    {
+      "id": "code_false_vuln_03",
+      "code": "def read_configuration(filepath: str) -> str:\n    with open(filepath, 'r', encoding='utf-8') as f:\n        return f.read()",
+      "expected": "clean",
+      "predicted": "defective",
+      "defect_probability": 0.5786,
+      "confidence": 0.1572,
+      "category": "false_vulnerability",
+      "notes": "Idiomatic safe context manager. File I/O triggers defect heuristics"
+    }
+  ],
+  "hard_examples": [
+    {
+      "example_id": "code_clean_01",
+      "input_snippet": "def add_numbers(a: int, b: int) -> int: ...",
+      "true_label": "clean",
+      "predicted_label": "defective",
+      "confidence": 0.155,
+      "margin": 0.1775,
+      "error_category": "false_vulnerability",
+      "root_cause_explanation": "Code risk mismatch (false_vulnerability). Expected clean, got defective (prob=0.58). Reason: Pure basic arithmetic"
+    },
+    {
+      "example_id": "code_clean_02",
+      "input_snippet": "def binary_search(arr, target): ...",
+      "true_label": "clean",
+      "predicted_label": "defective",
+      "confidence": 0.1082,
+      "margin": 0.1541,
+      "error_category": "false_vulnerability",
+      "root_cause_explanation": "Code risk mismatch (false_vulnerability). Expected clean, got defective (prob=0.55). Reason: Standard correct binary search"
+    },
+    {
+      "example_id": "code_false_vuln_01",
+      "input_snippet": "def safe_divide(numerator: float, denominator: float) -> float: ...",
+      "true_label": "clean",
+      "predicted_label": "defective",
+      "confidence": 0.1512,
+      "margin": 0.1756,
+      "error_category": "false_vulnerability",
+      "root_cause_explanation": "Code risk mismatch (false_vulnerability). Expected clean, got defective (prob=0.58). Reason: Guarded division. Contains 'raise ValueError' and '/' which naive tokenizers flag as high risk"
+    },
+    {
+      "example_id": "code_false_vuln_02",
+      "input_snippet": "def get_first_item(items: list): ...",
+      "true_label": "clean",
+      "predicted_label": "defective",
+      "confidence": 0.1614,
+      "margin": 0.1807,
+      "error_category": "false_vulnerability",
+      "root_cause_explanation": "Code risk mismatch (false_vulnerability). Expected clean, got defective (prob=0.58). Reason: Defensive list indexing with ternary check. Substring 'items[0]' triggers false positive"
+    },
+    {
+      "example_id": "code_false_vuln_03",
+      "input_snippet": "def read_configuration(filepath: str) -> str: ...",
+      "true_label": "clean",
+      "predicted_label": "defective",
+      "confidence": 0.1572,
+      "margin": 0.1786,
+      "error_category": "false_vulnerability",
+      "root_cause_explanation": "Code risk mismatch (false_vulnerability). Expected clean, got defective (prob=0.58). Reason: Idiomatic safe context manager. File I/O triggers defect heuristics"
+    }
+  ],
+  "false_positives": [
+    {
+      "id": "code_clean_01",
+      "code": "def add_numbers(a: int, b: int) -> int:\n    return a + b",
+      "defect_prob": 0.5775,
+      "confidence": 0.155,
+      "notes": "Pure basic arithmetic"
+    },
+    {
+      "id": "code_clean_02",
+      "code": "def binary_search(arr, target):\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1",
+      "defect_prob": 0.5541,
+      "confidence": 0.1082,
+      "notes": "Standard correct binary search"
+    },
+    {
+      "id": "code_false_vuln_01",
+      "code": "def safe_divide(numerator: float, denominator: float) -> float:\n    if denominator == 0:\n        raise ValueError('Denominator cannot be zero')\n    return numerator / denominator",
+      "defect_prob": 0.5756,
+      "confidence": 0.1512,
+      "notes": "Guarded division. Contains 'raise ValueError' and '/' which naive tokenizers flag as high risk"
+    },
+    {
+      "id": "code_false_vuln_02",
+      "code": "def get_first_item(items: list):\n    return items[0] if items else None",
+      "defect_prob": 0.5807,
+      "confidence": 0.1614,
+      "notes": "Defensive list indexing with ternary check. Substring 'items[0]' triggers false positive"
+    },
+    {
+      "id": "code_false_vuln_03",
+      "code": "def read_configuration(filepath: str) -> str:\n    with open(filepath, 'r', encoding='utf-8') as f:\n        return f.read()",
+      "defect_prob": 0.5786,
+      "confidence": 0.1572,
+      "notes": "Idiomatic safe context manager. File I/O triggers defect heuristics"
+    }
+  ],
+  "false_negatives": [],
+  "confidence_distribution": {
+    "bin_edges": [
+      0.0,
+      0.1,
+      0.2,
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      1.0
+    ],
+    "overall_counts": [
+      0,
+      10,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "correct_counts": [
+      0,
+      5,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "error_counts": [
+      0,
+      5,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "mean_confidence_overall": 0.1497,
+    "mean_confidence_correct": 0.1528,
+    "mean_confidence_error": 0.1466,
+    "calibration_gap": 0.0062
+  }
+}

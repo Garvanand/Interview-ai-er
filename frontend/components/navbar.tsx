@@ -23,7 +23,9 @@ export function Navbar({ userEmail }: { userEmail?: string }) {
   const router = useRouter()
 
   async function signOut() {
-    await supabase.auth.signOut()
+    if (supabase) {
+      await supabase.auth.signOut()
+    }
     router.replace("/")
   }
 

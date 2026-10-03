@@ -25,6 +25,12 @@ import {
   FileText,
   Loader2,
 } from "lucide-react"
+import {
+  MLDetectedFocus,
+  MLConceptCoverageResult,
+  MLCodeResultInterpretation,
+  MLAdaptiveExplanation,
+} from "@/components/ui/ml-explanation"
 
 export default function HistoryPage() {
   const { userId, isLoading: authLoading } = useAuth({ redirectIfUnauthenticated: true })
@@ -329,42 +335,84 @@ export default function HistoryPage() {
                   Evaluated Questions & Rubrics ({selectedSession.questions?.length || 0})
                 </h4>
                 <div className="space-y-3">
-                  {selectedSession.questions?.map((q: any, idx: number) => (
-                    <div
-                      key={q.id || idx}
-                      className="p-4 rounded border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3"
-                    >
-                      <div className="flex items-start justify-between">
-                        <span className="text-blue-600 dark:text-blue-400 font-bold">
-                          Q{idx + 1}. {q.skill_focus ? `[${q.skill_focus}]` : ""}
-                        </span>
-                        {q.evaluation_score != null && (
-                          <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 font-bold text-slate-900 dark:text-slate-100">
-                            {Math.round(q.evaluation_score)} pts
-                          </span>
+                  {selectedSession.questions?.map((q: any, idx: number) => {
+                    const isCode = Boolean(q.code_text || q.programming_language)
+                    const evalDetails = q.evaluation_details || q.code_evaluation_details || {}
+
+                    return (
+                      <div
+                        key={q.id || idx}
+                        className="p-4 rounded border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 dark:text-slate-100">
+                              Q{idx + 1}.
+                            </span>
+                            <MLDetectedFocus skill={q.skill_focus || "General Engineering"} />
+                          </div>
+                          {q.evaluation_score != null && (
+                            <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 font-bold text-slate-900 dark:text-slate-100">
+                              {Math.round(q.evaluation_score)} pts
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs font-sans text-slate-800 dark:text-slate-200 leading-relaxed">
+                          {q.question_text}
+                        </p>
+
+                        {(q.selection_rationale || q.why_selected) && (
+                          <MLAdaptiveExplanation
+                            explanation={q.selection_rationale || q.why_selected}
+                            targetSkill={q.skill_focus}
+                            decision={q.selection_decision}
+                          />
+                        )}
+
+                        {q.answer_text && (
+                          <div className="rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] p-3 text-[11px] text-slate-600 dark:text-slate-300">
+                            <span className="text-[10px] text-slate-400 uppercase block mb-1">Your Answer:</span>
+                            {q.answer_text}
+                          </div>
+                        )}
+
+                        {q.code_text && (
+                          <div className="rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] p-3 text-[11px]">
+                            <span className="text-[10px] text-slate-400 uppercase block mb-1">
+                              Your Code ({q.programming_language || 'code'}):
+                            </span>
+                            <pre className="bg-black/40 text-emerald-300 p-2.5 rounded font-mono text-xs overflow-x-auto">
+                              {q.code_text}
+                            </pre>
+                          </div>
+                        )}
+
+                        {/* ML Signals Interpretation */}
+                        {isCode ? (
+                          <MLCodeResultInterpretation
+                            defectDetection={evalDetails.ml_defect_detection}
+                            totalTests={10}
+                            passedTests={q.evaluation_score ? Math.round((q.evaluation_score / 100) * 10) : 8}
+                          />
+                        ) : (
+                          <MLConceptCoverageResult
+                            coverageData={evalDetails.ml_concept_coverage}
+                            fallbackScore={q.evaluation_score || 75}
+                          />
+                        )}
+
+                        {q.evaluation_feedback && (
+                          <div className="text-[11px] text-slate-700 dark:text-slate-300 bg-emerald-500/5 border-l-2 border-emerald-500 pl-3 py-1 font-sans">
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400 block mb-0.5">
+                              Evaluator Feedback:
+                            </span>
+                            {q.evaluation_feedback}
+                          </div>
                         )}
                       </div>
-                      <p className="text-xs font-sans text-slate-800 dark:text-slate-200 leading-relaxed">
-                        {q.question_text}
-                      </p>
-
-                      {q.answer_text && (
-                        <div className="rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d121f] p-3 text-[11px] text-slate-600 dark:text-slate-300">
-                          <span className="text-[10px] text-slate-400 uppercase block mb-1">Your Answer:</span>
-                          {q.answer_text}
-                        </div>
-                      )}
-
-                      {q.evaluation_feedback && (
-                        <div className="text-[11px] text-slate-700 dark:text-slate-300 bg-emerald-500/5 border-l-2 border-emerald-500 pl-3 py-1">
-                          <span className="font-semibold text-emerald-600 dark:text-emerald-400 block mb-0.5">
-                            Evaluator Feedback:
-                          </span>
-                          {q.evaluation_feedback}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             </div>

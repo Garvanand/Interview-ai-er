@@ -132,9 +132,17 @@ class MLModelRegistry:
         ),
     }
 
+    _ALIASES: Dict[str, str] = {
+        "question-skill-v1": "question-skill-classifier-v1",
+        "answer-nli-v1": "answer-concept-coverage-v1",
+        "code-risk-v1": "code-defect-detector-v1",
+        "mastery-v1": "candidate-skill-mastery-irt-v1",
+    }
+
     @classmethod
     def get(cls, model_id: str) -> Optional[ModelMetadata]:
-        return cls._MODELS.get(model_id)
+        resolved = cls._ALIASES.get(model_id, model_id)
+        return cls._MODELS.get(resolved)
 
     @classmethod
     def list_all(cls) -> List[ModelMetadata]:

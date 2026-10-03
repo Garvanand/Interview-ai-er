@@ -1,0 +1,82 @@
+{
+  "timestamp": "2026-10-03T22:00:00Z",
+  "models_analyzed": 5,
+  "reports": {
+    "difficulty": {
+      "model_name": "QuestionDifficultyPredictor",
+      "model_alias": "question-difficulty-v1",
+      "samples": 20,
+      "primary_metric": 0.55,
+      "macro_f1": 0.5442890442890442,
+      "failure_counts": {
+        "easy_classified_as_medium": 2,
+        "medium_classified_as_hard": 3,
+        "hard_classified_as_easy": 1,
+        "medium_classified_as_easy": 0,
+        "hard_classified_as_medium": 3,
+        "easy_classified_as_hard": 0,
+        "correct": 11
+      },
+      "hard_examples_count": 14,
+      "report_path": "reports/error_analysis\\difficulty_error_report.json"
+    },
+    "skill_tagger": {
+      "model_name": "QuestionSkillClassifier",
+      "model_alias": "question-skill-v1",
+      "samples": 13,
+      "primary_metric": 0.0,
+      "macro_f1": 0.39444444444444443,
+      "failure_counts": {
+        "missed_skill": 13,
+        "incorrect_skill": 13,
+        "ambiguous_tag": 7,
+        "correct": 0
+      },
+      "hard_examples_count": 13,
+      "report_path": "reports/error_analysis\\skill_tagger_error_report.json"
+    },
+    "nli_analyzer": {
+      "model_name": "ConceptCoverageAnalyzer",
+      "model_alias": "answer-nli-v1",
+      "samples": 8,
+      "primary_metric": 0.25,
+      "macro_f1": 0.27777777777777773,
+      "failure_counts": {
+        "false_entailment": 0,
+        "false_contradiction": 0,
+        "partial_coverage_errors": 12,
+        "correct": 2
+      },
+      "hard_examples_count": 6,
+      "report_path": "reports/error_analysis\\nli_analyzer_error_report.json"
+    },
+    "code_defect": {
+      "model_name": "CodeDefectDetector",
+      "model_alias": "code-risk-v1",
+      "samples": 10,
+      "primary_metric": 0.5,
+      "macro_f1": 0.3333333333333333,
+      "failure_counts": {
+        "false_vulnerability": 5,
+        "missed_defect": 0,
+        "correct": 5
+      },
+      "hard_examples_count": 5,
+      "report_path": "reports/error_analysis\\code_defect_error_report.json"
+    },
+    "mastery": {
+      "model_name": "ItemResponseTheoryMasteryModel",
+      "model_alias": "mastery-v1",
+      "samples": 7,
+      "primary_metric": 0.42857142857142855,
+      "macro_f1": 0.38888888888888884,
+      "failure_counts": {
+        "overestimation": 3,
+        "underestimation": 2,
+        "accurate_estimate": 2
+      },
+      "hard_examples_count": 5,
+      "report_path": "reports/error_analysis\\mastery_error_report.json"
+    }
+  }
+}

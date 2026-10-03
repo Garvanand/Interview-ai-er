@@ -23,6 +23,7 @@ import {
   FileCode,
   ShieldCheck
 } from "lucide-react"
+import { MLCodeResultInterpretation, MLExplanationContainer } from "@/components/ui/ml-explanation"
 import dynamic from "next/dynamic"
 
 const Monaco = dynamic(() => import("./code-editor"), { ssr: false })
@@ -654,89 +655,13 @@ export function EnhancedCodeEditor({ sessionId, questionId, onCodeSubmit }: Enha
                 </div>
               )}
 
-              {/* ML Defect & Vulnerability Intelligence */}
-              {evaluation.ml_defect_detection && (
-                <div className={`p-3.5 rounded border text-xs ${
-                  evaluation.ml_defect_detection.risk_band === 'high'
-                    ? 'border-rose-300 dark:border-rose-900/60 bg-rose-50/30 dark:bg-rose-950/20'
-                    : evaluation.ml_defect_detection.risk_band === 'medium'
-                    ? 'border-amber-300 dark:border-amber-900/60 bg-amber-50/30 dark:bg-amber-950/20'
-                    : 'border-emerald-300 dark:border-emerald-900/60 bg-emerald-50/30 dark:bg-emerald-950/20'
-                }`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <ShieldCheck className={`h-4 w-4 ${
-                        evaluation.ml_defect_detection.risk_band === 'high' ? 'text-rose-500' :
-                        evaluation.ml_defect_detection.risk_band === 'medium' ? 'text-amber-500' : 'text-emerald-500'
-                      }`} />
-                      <span className="font-mono text-[10px] uppercase font-bold tracking-wider text-slate-700 dark:text-slate-300">
-                        CodeBERT Defect Intelligence (ML Risk Signal)
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase ${
-                        evaluation.ml_defect_detection.risk_band === 'high'
-                          ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300'
-                          : evaluation.ml_defect_detection.risk_band === 'medium'
-                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
-                          : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'
-                      }`}>
-                        {evaluation.ml_defect_detection.risk_band} Risk
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-500">
-                        p(defect) = {(evaluation.ml_defect_detection.defect_probability * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-1 text-[11px] font-mono text-slate-600 dark:text-slate-400">
-                    <div>
-                      <span className="text-slate-400 dark:text-slate-500 block text-[9px] uppercase">Confidence</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {(evaluation.ml_defect_detection.confidence * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 dark:text-slate-500 block text-[9px] uppercase">Latency</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {evaluation.ml_defect_detection.inference_time_ms ? `${evaluation.ml_defect_detection.inference_time_ms.toFixed(0)}ms` : 'sub-100ms'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 dark:text-slate-500 block text-[9px] uppercase">Encoder Head</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {evaluation.ml_defect_detection.is_fine_tuned ? 'Fine-tuned' : 'Base CodeBERT'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 dark:text-slate-500 block text-[9px] uppercase">Model Version</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">
-                        {evaluation.ml_defect_detection.model_version}
-                      </span>
-                    </div>
-                  </div>
-
-                  {evaluation.ml_defect_detection.risk_indicators && evaluation.ml_defect_detection.risk_indicators.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
-                      <span className="text-[10px] font-mono uppercase text-slate-500 block mb-1">
-                        Detected Vulnerability & Bug Patterns:
-                      </span>
-                      <ul className="space-y-1">
-                        {evaluation.ml_defect_detection.risk_indicators.map((ind, i) => (
-                          <li key={i} className="flex items-center space-x-1.5 text-[11px] text-slate-700 dark:text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                            <span>{ind}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 italic">
-                    Note: ML defect probability serves as an advisory safety signal alongside runtime test execution and AI reasoning.
-                  </p>
-                </div>
-              )}
+              {/* ML Defect & Runtime Signals Interpretation */}
+              <MLCodeResultInterpretation
+                defectDetection={evaluation.ml_defect_detection}
+                executionResult={runOutput}
+                passedTests={evaluation.correctness ? Math.round((evaluation.correctness / 100) * 10) : (runOutput?.success ? 10 : 8)}
+                totalTests={10}
+              />
 
               {/* Strengths & Improvements */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">

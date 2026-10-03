@@ -78,12 +78,6 @@ export default function CodeEditor({
         showReferences: true,
         showFolders: true,
         showTypeParameters: true,
-        showWords: true,
-        showColors: true,
-        showFiles: true,
-        showReferences: true,
-        showFolders: true,
-        showTypeParameters: true,
         showWords: true
       }
     })
@@ -109,8 +103,8 @@ export default function CodeEditor({
         monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF
       ],
       contextMenuGroupId: '1_modification',
-      run: (editor) => {
-        editor.getAction('editor.action.formatDocument').run()
+      run: (ed: any) => {
+        ed.getAction('editor.action.formatDocument')?.run()
       }
     })
 
@@ -122,8 +116,8 @@ export default function CodeEditor({
         monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash
       ],
       contextMenuGroupId: '1_modification',
-      run: (editor) => {
-        editor.getAction('editor.action.commentLine').run()
+      run: (ed: any) => {
+        ed.getAction('editor.action.commentLine')?.run()
       }
     })
   }

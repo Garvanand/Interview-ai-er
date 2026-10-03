@@ -1,0 +1,492 @@
+{
+  "model_name": "ConceptCoverageAnalyzer",
+  "model_alias": "answer-nli-v1",
+  "total_samples": 8,
+  "primary_metric": 0.25,
+  "macro_f1": 0.2778,
+  "confusion_matrix": {
+    "labels": [
+      "covered",
+      "partially_covered",
+      "missing"
+    ],
+    "raw_matrix": [
+      [
+        0,
+        8,
+        4
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        10
+      ]
+    ],
+    "normalized_matrix": [
+      [
+        0.0,
+        0.6667,
+        0.3333
+      ],
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "per_class_metrics": {
+    "covered": {
+      "label": "covered",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 12
+    },
+    "partially_covered": {
+      "label": "partially_covered",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 0
+    },
+    "missing": {
+      "label": "missing",
+      "precision": 0.7143,
+      "recall": 1.0,
+      "f1_score": 0.8333,
+      "support": 10
+    }
+  },
+  "failure_category_counts": {
+    "false_entailment": 0,
+    "false_contradiction": 0,
+    "partial_coverage_errors": 12,
+    "correct": 2
+  },
+  "failure_cases": [
+    {
+      "id": "nli_good_01",
+      "question": "What is the role of a replica set in MongoDB?",
+      "answer": "A replica set in MongoDB provides high availability and data redundancy by maintaining multiple copies of data on different nodes with automatic failover.",
+      "expected_overall": 100.0,
+      "actual_overall": 47.1,
+      "categories": [
+        "partial_coverage_errors"
+      ],
+      "concept_details": [
+        {
+          "concept": "High availability",
+          "entailment_probability": 0.4132,
+          "contradiction_probability": 0.0514,
+          "neutral_probability": 0.5354,
+          "semantic_similarity": 0.4861,
+          "concept_score": 0.4387,
+          "status": "partially_covered"
+        },
+        {
+          "concept": "Data redundancy",
+          "entailment_probability": 0.3924,
+          "contradiction_probability": 0.0538,
+          "neutral_probability": 0.5538,
+          "semantic_similarity": 0.4616,
+          "concept_score": 0.4166,
+          "status": "partially_covered"
+        },
+        {
+          "concept": "Automatic failover",
+          "entailment_probability": 0.3956,
+          "contradiction_probability": 0.0535,
+          "neutral_probability": 0.5509,
+          "semantic_similarity": 0.4654,
+          "concept_score": 0.42,
+          "status": "partially_covered"
+        }
+      ],
+      "confidence": 0.471,
+      "notes": "Clear, complete technical explanation"
+    },
+    {
+      "id": "nli_good_02",
+      "question": "How does virtual memory protect processes?",
+      "answer": "It isolates process address spaces so one process cannot access another's memory.",
+      "expected_overall": 33.3,
+      "actual_overall": 36.8,
+      "categories": [
+        "partial_coverage_errors"
+      ],
+      "concept_details": [
+        {
+          "concept": "Address space isolation",
+          "entailment_probability": 0.5329,
+          "contradiction_probability": 0.0373,
+          "neutral_probability": 0.4298,
+          "semantic_similarity": 0.6269,
+          "concept_score": 0.5658,
+          "status": "partially_covered"
+        },
+        {
+          "concept": "Page tables",
+          "entailment_probability": 0.0,
+          "contradiction_probability": 0.084,
+          "neutral_probability": 0.916,
+          "semantic_similarity": 0.1597,
+          "concept_score": 0.0559,
+          "status": "missing"
+        },
+        {
+          "concept": "Hardware translation",
+          "entailment_probability": 0.0,
+          "contradiction_probability": 0.0683,
+          "neutral_probability": 0.9317,
+          "semantic_similarity": 0.3172,
+          "concept_score": 0.111,
+          "status": "missing"
+        }
+      ],
+      "confidence": 0.3679,
+      "notes": "Accurate partial explanation with clear missing items"
+    },
+    {
+      "id": "nli_false_contra_01",
+      "question": "What is the average time complexity of Quicksort?",
+      "answer": "Quicksort runs in expected O(n log n) time on average; however, if you choose a bad pivot on an already sorted list, it will not achieve O(n log n) and instead degrade to O(n^2).",
+      "expected_overall": 100.0,
+      "actual_overall": 26.0,
+      "categories": [
+        "partial_coverage_errors"
+      ],
+      "concept_details": [
+        {
+          "concept": "O(n log n) expected time",
+          "entailment_probability": 0.2553,
+          "contradiction_probability": 0.07,
+          "neutral_probability": 0.6747,
+          "semantic_similarity": 0.3003,
+          "concept_score": 0.2711,
+          "status": "missing"
+        },
+        {
+          "concept": "Pivot partition",
+          "entailment_probability": 0.1863,
+          "contradiction_probability": 0.0781,
+          "neutral_probability": 0.7356,
+          "semantic_similarity": 0.2192,
+          "concept_score": 0.1978,
+          "status": "missing"
+        }
+      ],
+      "confidence": 0.2598,
+      "notes": "Phrasing 'it will not achieve O(n log n) and instead degrade' contains negation that NLI can confuse for contradiction."
+    },
+    {
+      "id": "nli_false_contra_02",
+      "question": "How do HTTP/2 connections operate differently from HTTP/1.1?",
+      "answer": "Unlike HTTP/1.1 where browsers opened 6 separate TCP connections, HTTP/2 does not open multiple TCP sockets per origin; it multiplexes streams over one TCP pipe.",
+      "expected_overall": 100.0,
+      "actual_overall": 38.7,
+      "categories": [
+        "partial_coverage_errors"
+      ],
+      "concept_details": [
+        {
+          "concept": "Single persistent TCP connection",
+          "entailment_probability": 0.2833,
+          "contradiction_probability": 0.0536,
+          "neutral_probability": 0.6631,
+          "semantic_similarity": 0.4642,
+          "concept_score": 0.3466,
+          "status": "missing"
+        },
+        {
+          "concept": "Binary stream multiplexing",
+          "entailment_probability": 0.2637,
+          "contradiction_probability": 0.069,
+          "neutral_probability": 0.6673,
+          "semantic_similarity": 0.3102,
+          "concept_score": 0.28,
+          "status": "missing"
+        }
+      ],
+      "confidence": 0.3872,
+      "notes": "'does not open multiple TCP sockets' is a negative assertion that models frequently classify as contradiction."
+    },
+    {
+      "id": "nli_partial_01",
+      "question": "Explain the ACID properties of relational databases.",
+      "answer": "Atomicity means the transaction happens completely or aborts. Consistency guarantees integrity constraints hold.",
+      "expected_overall": 50.0,
+      "actual_overall": 37.2,
+      "categories": [
+        "partial_coverage_errors"
+      ],
+      "concept_details": [
+        {
+          "concept": "Atomicity",
+          "entailment_probability": 0.4919,
+          "contradiction_probability": 0.0421,
+          "neutral_probability": 0.466,
+          "semantic_similarity": 0.5787,
+          "concept_score": 0.5223,
+          "status": "partially_covered"
+        },
+        {
+          "concept": "Consistency",
+          "entailment_probability": 0.4321,
+          "contradiction_probability": 0.0492,
+          "neutral_probability": 0.5187,
+          "semantic_similarity": 0.5084,
+          "concept_score": 0.4588,
+          "status": "partially_covered"
+        },
+        {
+          "concept": "Isolation",
+          "entailment_probability": 0.0,
+          "contradiction_probability": 0.073,
+          "neutral_probability": 0.927,
+          "semantic_similarity": 0.2698,
+          "concept_score": 0.0944,
+          "status": "missing"
+        },
+        {
+          "concept": "Durability",
+          "entailment_probability": 0.0,
+          "contradiction_probability": 0.0868,
+          "neutral_probability": 0.9132,
+          "semantic_similarity": 0.1318,
+          "concept_score": 0.0461,
+          "status": "missing"
+        }
+      ],
+      "confidence": 0.3722,
+      "notes": "Explains 2 of 4 concepts; models sometimes inflate coverage to 75% or conflate consistency with durability."
+    },
+    {
+      "id": "nli_partial_02",
+      "question": "What are the core components of Kubernetes architecture?",
+      "answer": "Kubernetes has an API server in the control plane that schedules pods, and kubelet runs as an agent on each node.",
+      "expected_overall": 50.0,
+      "actual_overall": 41.9,
+      "categories": [
+        "partial_coverage_errors"
+      ],
+      "concept_details": [
+        {
+          "concept": "Kubelet agent",
+          "entailment_probability": 0.451,
+          "contradiction_probability": 0.0469,
+          "neutral_probability": 0.5021,
+          "semantic_similarity": 0.5306,
+          "concept_score": 0.4789,
+          "status": "partially_covered"
+        },
+        {
+          "concept": "Control Plane API Server",
+          "entailment_probability": 0.3835,
+          "contradiction_probability": 0.0549,
+          "neutral_probability": 0.5616,
+          "semantic_similarity": 0.4512,
+          "concept_score": 0.4072,
+          "status": "partially_covered"
+        },
+        {
+          "concept": "etcd state store",
+          "entailment_probability": 0.0,
+          "contradiction_probability": 0.0881,
+          "neutral_probability": 0.9119,
+          "semantic_similarity": 0.119,
+          "concept_score": 0.0416,
+          "status": "missing"
+        },
+        {
+          "concept": "Kube-proxy network routing",
+          "entailment_probability": 0.0,
+          "contradiction_probability": 0.0423,
+          "neutral_probability": 0.9577,
+          "semantic_similarity": 0.5767,
+          "concept_score": 0.2018,
+          "status": "missing"
+        }
+      ],
+      "confidence": 0.4194,
+      "notes": "Covers control plane and kubelet; etcd and kube-proxy are completely omitted."
+    }
+  ],
+  "hard_examples": [
+    {
+      "example_id": "nli_good_01",
+      "input_snippet": "Q: What is the role of a replica set in MongoDB? | Ans: A replica set in MongoDB provides high availability and data redundancy by maintaining multiple copies of data on different nodes with automatic failover.",
+      "true_label": {
+        "High availability": "covered",
+        "Data redundancy": "covered",
+        "Automatic failover": "covered"
+      },
+      "predicted_label": {
+        "High availability": "partially_covered",
+        "Data redundancy": "partially_covered",
+        "Automatic failover": "partially_covered"
+      },
+      "confidence": 0.471,
+      "margin": 0.529,
+      "error_category": "partial_coverage_errors",
+      "root_cause_explanation": "NLI grading discrepancy. Expected 100.0%, got 47.1%. Categories: {'partial_coverage_errors'}. Notes: Clear, complete technical explanation"
+    },
+    {
+      "example_id": "nli_good_02",
+      "input_snippet": "Q: How does virtual memory protect processes? | Ans: It isolates process address spaces so one process cannot access another's memory.",
+      "true_label": {
+        "Address space isolation": "covered",
+        "Page tables": "missing",
+        "Hardware translation": "missing"
+      },
+      "predicted_label": {
+        "Address space isolation": "partially_covered",
+        "Page tables": "missing",
+        "Hardware translation": "missing"
+      },
+      "confidence": 0.3679,
+      "margin": 0.035,
+      "error_category": "partial_coverage_errors",
+      "root_cause_explanation": "NLI grading discrepancy. Expected 33.3%, got 36.8%. Categories: {'partial_coverage_errors'}. Notes: Accurate partial explanation with clear missing items"
+    },
+    {
+      "example_id": "nli_false_contra_01",
+      "input_snippet": "Q: What is the average time complexity of Quicksort? | Ans: Quicksort runs in expected O(n log n) time on average; however, if you choose a bad pivot on an already sorted list, it will not achieve O(n log n) and instead degrade to O(n^2).",
+      "true_label": {
+        "O(n log n) expected time": "covered",
+        "Pivot partition": "covered"
+      },
+      "predicted_label": {
+        "O(n log n) expected time": "missing",
+        "Pivot partition": "missing"
+      },
+      "confidence": 0.2598,
+      "margin": 0.74,
+      "error_category": "partial_coverage_errors",
+      "root_cause_explanation": "NLI grading discrepancy. Expected 100.0%, got 26.0%. Categories: {'partial_coverage_errors'}. Notes: Phrasing 'it will not achieve O(n log n) and instead degrade' contains negation that NLI can confuse for contradiction."
+    },
+    {
+      "example_id": "nli_false_contra_02",
+      "input_snippet": "Q: How do HTTP/2 connections operate differently from HTTP/1.1? | Ans: Unlike HTTP/1.1 where browsers opened 6 separate TCP connections, HTTP/2 does not open multiple TCP sockets per origin; it multiplexes streams over one TCP pipe.",
+      "true_label": {
+        "Single persistent TCP connection": "covered",
+        "Binary stream multiplexing": "covered"
+      },
+      "predicted_label": {
+        "Single persistent TCP connection": "missing",
+        "Binary stream multiplexing": "missing"
+      },
+      "confidence": 0.3872,
+      "margin": 0.613,
+      "error_category": "partial_coverage_errors",
+      "root_cause_explanation": "NLI grading discrepancy. Expected 100.0%, got 38.7%. Categories: {'partial_coverage_errors'}. Notes: 'does not open multiple TCP sockets' is a negative assertion that models frequently classify as contradiction."
+    },
+    {
+      "example_id": "nli_partial_01",
+      "input_snippet": "Q: Explain the ACID properties of relational databases. | Ans: Atomicity means the transaction happens completely or aborts. Consistency guarantees integrity constraints hold.",
+      "true_label": {
+        "Atomicity": "covered",
+        "Consistency": "covered",
+        "Isolation": "missing",
+        "Durability": "missing"
+      },
+      "predicted_label": {
+        "Atomicity": "partially_covered",
+        "Consistency": "partially_covered",
+        "Isolation": "missing",
+        "Durability": "missing"
+      },
+      "confidence": 0.3722,
+      "margin": 0.128,
+      "error_category": "partial_coverage_errors",
+      "root_cause_explanation": "NLI grading discrepancy. Expected 50.0%, got 37.2%. Categories: {'partial_coverage_errors'}. Notes: Explains 2 of 4 concepts; models sometimes inflate coverage to 75% or conflate consistency with durability."
+    },
+    {
+      "example_id": "nli_partial_02",
+      "input_snippet": "Q: What are the core components of Kubernetes architecture? | Ans: Kubernetes has an API server in the control plane that schedules pods, and kubelet runs as an agent on each node.",
+      "true_label": {
+        "Kubelet agent": "covered",
+        "Control Plane API Server": "covered",
+        "etcd state store": "missing",
+        "Kube-proxy network routing": "missing"
+      },
+      "predicted_label": {
+        "Kubelet agent": "partially_covered",
+        "Control Plane API Server": "partially_covered",
+        "etcd state store": "missing",
+        "Kube-proxy network routing": "missing"
+      },
+      "confidence": 0.4194,
+      "margin": 0.081,
+      "error_category": "partial_coverage_errors",
+      "root_cause_explanation": "NLI grading discrepancy. Expected 50.0%, got 41.9%. Categories: {'partial_coverage_errors'}. Notes: Covers control plane and kubelet; etcd and kube-proxy are completely omitted."
+    }
+  ],
+  "false_positives": [],
+  "false_negatives": [],
+  "confidence_distribution": {
+    "bin_edges": [
+      0.0,
+      0.1,
+      0.2,
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      1.0
+    ],
+    "overall_counts": [
+      0,
+      0,
+      3,
+      3,
+      2,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "correct_counts": [
+      0,
+      0,
+      2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "error_counts": [
+      0,
+      0,
+      1,
+      3,
+      2,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "mean_confidence_overall": 0.3514,
+    "mean_confidence_correct": 0.2669,
+    "mean_confidence_error": 0.3796,
+    "calibration_gap": -0.1127
+  }
+}

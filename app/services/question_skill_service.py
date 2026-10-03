@@ -84,7 +84,11 @@ class QuestionSkillService:
         
         # Primary confidence is top prediction confidence
         top_confidence = predicted_skills[0]["confidence"] if predicted_skills else 0.0
-        model_version = classification.get("model_version", "1.0.0")
+        model_name = classification.get("model_name", "question-skill-v1")
+        model_version = classification.get("model_version", "1.1.0")
+        dataset_version = classification.get("dataset_version", "2026.10")
+        training_run = classification.get("training_run", "question-skill-tagger-v1_20261003T063901Z")
+        inference_timestamp = classification.get("inference_timestamp", datetime.now(timezone.utc).isoformat())
         current_time = datetime.now(timezone.utc).isoformat()
 
         # Persist ML metadata without modifying original question record
@@ -94,13 +98,21 @@ class QuestionSkillService:
             confidence=top_confidence,
             model_version=model_version,
             timestamp=current_time,
+            model_name=model_name,
+            dataset_version=dataset_version,
+            training_run=training_run,
+            inference_timestamp=inference_timestamp,
         )
 
         return {
             "question_id": question_id,
             "predicted_skills": predicted_skills,
             "confidence": top_confidence,
+            "model_name": model_name,
             "model_version": model_version,
+            "dataset_version": dataset_version,
+            "training_run": training_run,
+            "inference_timestamp": inference_timestamp,
             "timestamp": current_time,
             "skills": predicted_skills,
             "method": classification.get("method", "trained_multilabel_classifier")

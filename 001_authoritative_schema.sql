@@ -86,6 +86,11 @@ CREATE TABLE IF NOT EXISTS evaluations (
     feedback TEXT,
     evaluation_details JSONB DEFAULT '{}',
     status VARCHAR(20) DEFAULT 'COMPLETED',
+    model_name VARCHAR(100),
+    model_version VARCHAR(50),
+    dataset_version VARCHAR(100),
+    training_run VARCHAR(150),
+    inference_timestamp TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -383,10 +388,35 @@ CREATE TABLE IF NOT EXISTS question_skill_predictions (
     question_id UUID REFERENCES interview_questions(id) ON DELETE CASCADE,
     predicted_skills JSONB NOT NULL,
     confidence DECIMAL(5,4) DEFAULT 0.0000,
+    model_name VARCHAR(100) DEFAULT 'question-skill-v1',
     model_version VARCHAR(100) NOT NULL,
+    dataset_version VARCHAR(100) DEFAULT '2026.10',
+    training_run VARCHAR(150) DEFAULT 'question-skill-tagger-v1_20261003T063901Z',
+    inference_timestamp TIMESTAMP WITH TIME ZONE,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ALTER TABLE question_skill_predictions ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_question_skill_predictions_question_id ON question_skill_predictions(question_id);
+
+-- 16. MODEL_INFERENCES (Immutable model inference lineage across platform)
+CREATE TABLE IF NOT EXISTS model_inferences (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    session_id UUID REFERENCES interview_sessions(id) ON DELETE SET NULL,
+    question_id UUID REFERENCES interview_questions(id) ON DELETE SET NULL,
+    response_id UUID REFERENCES responses(id) ON DELETE SET NULL,
+    evaluation_id UUID REFERENCES evaluations(id) ON DELETE SET NULL,
+    model_name VARCHAR(100) NOT NULL,
+    model_version VARCHAR(50) NOT NULL,
+    dataset_version VARCHAR(100) NOT NULL,
+    training_run VARCHAR(150) NOT NULL,
+    inference_timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    inference_output JSONB DEFAULT '{}',
+    source VARCHAR(50) DEFAULT 'ml',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE model_inferences ENABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_model_inferences_session_id ON model_inferences(session_id);
+CREATE INDEX IF NOT EXISTS idx_model_inferences_model_name ON model_inferences(model_name);
+CREATE INDEX IF NOT EXISTS idx_model_inferences_version ON model_inferences(model_name, model_version);
 

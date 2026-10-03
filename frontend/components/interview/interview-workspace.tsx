@@ -43,6 +43,13 @@ import {
 } from "lucide-react"
 import { VoiceRecorderButton } from "./voice-recorder-button"
 import type { TranscriptionMetadata } from "@/hooks/use-voice-recorder"
+import {
+  MLDetectedFocus,
+  MLAdaptiveExplanation,
+  MLConceptCoverageResult,
+  MLCodeResultInterpretation,
+  MLExplanationContainer,
+} from "@/components/ui/ml-explanation"
 
 const MonacoEditor = dynamic(() => import("../ide/code-editor"), { ssr: false })
 
@@ -839,22 +846,32 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
           {/* 3. Skill / Topic Coverage Matrix */}
           <div className="space-y-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Assessed Skills
+              Skill Intelligence
             </span>
 
             <div className="space-y-1.5">
               {sessionState?.skills_distribution &&
-                Object.values(sessionState.skills_distribution).map((s: any, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between text-xs py-1 px-1.5 rounded bg-muted/20 border border-border/30"
-                  >
-                    <span className="truncate text-foreground/80 pr-2 text-[11px]">{s.skill_name}</span>
-                    <span className="font-mono text-[10px] text-muted-foreground shrink-0">
-                      {s.questions_count > 0 ? `${s.questions_count}Q • ${Math.round(s.average_score)}%` : "0Q"}
-                    </span>
-                  </div>
-                ))}
+                Object.values(sessionState.skills_distribution).map((s: any, idx) => {
+                  const masteryVal = s.mastery !== undefined ? s.mastery : (s.average_score ? (s.average_score / 100) : 0.5)
+                  const confidenceVal = s.questions_count >= 3 ? "high" : s.questions_count >= 1 ? "medium" : "low"
+
+                  return (
+                    <div
+                      key={idx}
+                      className="p-2 rounded bg-muted/20 border border-border/30 space-y-1 text-xs"
+                    >
+                      <div className="flex items-center justify-between font-medium">
+                        <span className="truncate text-foreground/90 text-[11px] font-semibold">
+                          {s.skill_name} — estimated mastery <span className="font-mono text-primary">{Number(masteryVal).toFixed(2)}</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+                        <span>Evidence confidence: {confidenceVal}</span>
+                        <span>{s.questions_count}Q answered</span>
+                      </div>
+                    </div>
+                  )
+                })}
             </div>
           </div>
         </aside>
@@ -888,9 +905,7 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
                 <span className="text-xs font-mono font-semibold uppercase px-2 py-0.5 rounded bg-muted text-muted-foreground">
                   Question {displayIndex}
                 </span>
-                <Badge variant="outline" className="text-xs">
-                  {activePromptQuestion?.skill_focus || "Engineering Fundamentals"}
-                </Badge>
+                <MLDetectedFocus skill={activePromptQuestion?.skill_focus || "Engineering Fundamentals"} />
                 {activePromptQuestion?.is_follow_up && (
                   <Badge variant="secondary" className="text-xs border-amber-500/30 text-amber-600 dark:text-amber-400">
                     Follow-up Probe
@@ -906,6 +921,15 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
             <div className="prose prose-invert max-w-none text-sm leading-relaxed text-foreground/90 font-normal">
               {activePromptQuestion?.question_text}
             </div>
+
+            {/* Adaptive Explanation for Question Selection */}
+            {((activePromptQuestion as any)?.why_selected || (activePromptQuestion as any)?.selection_rationale) && (
+              <MLAdaptiveExplanation
+                explanation={(activePromptQuestion as any)?.why_selected || (activePromptQuestion as any)?.selection_rationale}
+                targetSkill={activePromptQuestion?.skill_focus}
+                decision={(activePromptQuestion as any)?.selection_decision}
+              />
+            )}
           </div>
 
           {/* 2. Candidate Response Workspace */}
@@ -1157,6 +1181,21 @@ export function InterviewWorkspace({ sessionId, onSessionEnd }: InterviewWorkspa
                   </span>
                 </div>
               </div>
+
+              {/* ML Signals Interpretation */}
+              {answerMode === "code" ? (
+                <MLCodeResultInterpretation
+                  defectDetection={activeEvaluation?.ml_defect_detection}
+                  executionResult={runResult}
+                  passedTests={activeEvaluation?.correctness ? Math.round((activeEvaluation.correctness / 100) * 10) : (runResult?.success ? 10 : 8)}
+                  totalTests={10}
+                />
+              ) : (
+                <MLConceptCoverageResult
+                  coverageData={activeEvaluation?.ml_concept_coverage}
+                  fallbackScore={activeEvaluation?.overall_score ?? activeEvaluation?.score ?? 75}
+                />
+              )}
 
               {/* Rubric Dimension Subscores */}
               {answerMode === "code" ? (

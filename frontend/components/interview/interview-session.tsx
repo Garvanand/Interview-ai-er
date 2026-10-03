@@ -7,12 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { InterviewTimer } from './timer'
+import { InterviewTimer } from './interview-timer'
 import { AntiCheatGuard } from '@/components/anti-cheat/anti-cheat-guard'
 import { apiClient, type Question, type AnswerEvaluation, type SecurityCheck } from '@/lib/api-client'
 import { AlertCircle, CheckCircle, XCircle, Code, MessageSquare, Camera, Shield } from 'lucide-react'
 import { VoiceRecorderButton } from './voice-recorder-button'
 import type { TranscriptionMetadata } from '@/hooks/use-voice-recorder'
+import {
+  MLDetectedFocus,
+  MLAdaptiveExplanation,
+  MLConceptCoverageResult,
+} from '@/components/ui/ml-explanation'
 
 interface InterviewSessionProps {
   userId: string
@@ -74,13 +79,14 @@ export function InterviewSession({ userId, interviewType, onSessionEnd }: Interv
       try {
         const securityCheck = await apiClient.securityCheck(sessionId, securityData)
         
-        if (securityCheck.is_cheating) {
-          setSecurityFlags(prev => [...prev, `Security Alert: ${securityCheck.anomalies.join(', ')}`])
+        if (securityCheck?.is_cheating) {
+          const anomaliesText = (securityCheck.anomalies || []).join(', ')
+          setSecurityFlags((prev: string[]) => [...prev, `Security Alert: ${anomaliesText}`])
           
           // Log anomaly
           await apiClient.logAnomaly(sessionId, 'cheating_detected', 'high', {
             risk_score: securityCheck.risk_score,
-            anomalies: securityCheck.anomalies
+            anomalies: securityCheck.anomalies || []
           })
         }
       } catch (err) {
@@ -111,7 +117,7 @@ export function InterviewSession({ userId, interviewType, onSessionEnd }: Interv
         const timeSpan = now - keystrokes.current[0]
         const charsPerMinute = (keystrokes.current.length / timeSpan) * 60000
         
-        setSecurityData(prev => ({
+        setSecurityData((prev: any) => ({
           ...prev,
           typing_speed: Math.round(charsPerMinute),
           keystroke_count: keystrokes.current.length
@@ -167,7 +173,7 @@ export function InterviewSession({ userId, interviewType, onSessionEnd }: Interv
       const typingDuration = (Date.now() - typingStartTime.current) / 1000
       const instantChars = answerLength > 100 ? answerLength : 0
       
-      setSecurityData(prev => ({
+      setSecurityData((prev: any) => ({
         ...prev,
         answer_length: answerLength,
         typing_duration: typingDuration,
@@ -272,7 +278,7 @@ export function InterviewSession({ userId, interviewType, onSessionEnd }: Interv
                 <p className="text-sm font-medium">Score</p>
                 <p className="text-2xl font-bold text-green-600">{sessionScore}</p>
               </div>
-              <InterviewTimer seconds={1800} onTimeUp={endSession} />
+              <InterviewTimer duration={1800} onTimeUp={endSession} />
             </div>
           </div>
         </CardHeader>
@@ -282,13 +288,24 @@ export function InterviewSession({ userId, interviewType, onSessionEnd }: Interv
       {currentQuestion && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
-              Question {questionCount}
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                Question {questionCount}
+              </CardTitle>
+              <MLDetectedFocus skill={currentQuestion.skill_focus || "General Problem Solving"} />
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-lg">{currentQuestion.question_text}</p>
+
+            {((currentQuestion as any)?.why_selected || (currentQuestion as any)?.selection_rationale) && (
+              <MLAdaptiveExplanation
+                explanation={(currentQuestion as any)?.why_selected || (currentQuestion as any)?.selection_rationale}
+                targetSkill={currentQuestion.skill_focus}
+                decision={(currentQuestion as any)?.selection_decision}
+              />
+            )}
             
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -338,6 +355,12 @@ export function InterviewSession({ userId, interviewType, onSessionEnd }: Interv
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* ML Concept Coverage Signal */}
+            <MLConceptCoverageResult
+              coverageData={(evaluation as any)?.ml_concept_coverage}
+              fallbackScore={evaluation.score}
+            />
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-medium">Overall Score</p>
@@ -367,17 +390,19 @@ export function InterviewSession({ userId, interviewType, onSessionEnd }: Interv
                   ))}
                 </ul>
               </div>
-              <div>
-                <p className="text-sm font-medium">Improvements</p>
-                <ul className="text-sm mt-1 space-y-1">
-                  {evaluation.improvements.map((improvement, index) => (
-                    <li key={index} className="flex items-center gap-2">
-                      <XCircle className="h-4 w-4 text-red-500" />
-                      {improvement}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {evaluation.improvements && evaluation.improvements.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium">Improvements</p>
+                  <ul className="text-sm mt-1 space-y-1">
+                    {evaluation.improvements.map((improvement, index) => (
+                      <li key={index} className="flex items-center gap-2">
+                        <XCircle className="h-4 w-4 text-red-500" />
+                        {improvement}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
             
             <div className="flex gap-2">

@@ -18,6 +18,7 @@ class SupabaseService:
     _shared_anomalies: Dict[str, List[Dict[str, Any]]] = {}
     _shared_skill_profiles: Dict[str, Dict[str, Any]] = {}
     _shared_question_skills: Dict[str, Dict[str, Any]] = {}
+    _shared_inferences: Dict[str, Dict[str, Any]] = {}
     _cache_file: str = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
         ".local_storage_cache.json"
@@ -34,6 +35,7 @@ class SupabaseService:
         self._local_anomalies = SupabaseService._shared_anomalies
         self._local_skill_profiles = SupabaseService._shared_skill_profiles
         self._local_question_skills = SupabaseService._shared_question_skills
+        self._local_inferences = SupabaseService._shared_inferences
         self._ensure_cache_loaded()
 
     @classmethod
@@ -52,6 +54,7 @@ class SupabaseService:
                     cls._shared_skill_profiles.update(data.get("skill_profiles", {}))
                     cls._shared_recommendations.update(data.get("recommendations", {}))
                     cls._shared_question_skills.update(data.get("question_skills", {}))
+                    cls._shared_inferences.update(data.get("inferences", {}))
                 logger.info(f"Loaded {len(cls._shared_sessions)} sessions from local storage cache.")
         except Exception as e:
             logger.warning(f"Failed to load local storage cache: {e}")
@@ -67,6 +70,7 @@ class SupabaseService:
                 "skill_profiles": cls._shared_skill_profiles,
                 "recommendations": cls._shared_recommendations,
                 "question_skills": cls._shared_question_skills,
+                "inferences": cls._shared_inferences,
             }
             tmp_file = cls._cache_file + ".tmp"
             with open(tmp_file, "w", encoding="utf-8") as f:
@@ -255,13 +259,60 @@ class SupabaseService:
         transcription_metadata: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """Store an answer and its evaluation in normalized tables (with optional voice transcription metadata)."""
+        # Extract model version attribution fields
+        model_name = (
+            evaluation.get('model_name')
+            or evaluation.get('model_attribution', {}).get('model_name')
+            or 'answer-nli-v1'
+        )
+        model_version = (
+            evaluation.get('model_version')
+            or evaluation.get('model_attribution', {}).get('model_version')
+            or '1.0.0'
+        )
+        dataset_version = (
+            evaluation.get('dataset_version')
+            or evaluation.get('model_attribution', {}).get('dataset_version')
+            or 'mnli-snli-v1'
+        )
+        training_run = (
+            evaluation.get('training_run')
+            or evaluation.get('model_attribution', {}).get('training_run')
+            or 'answer-nli-v1_pretrained_deberta_minilm'
+        )
+        inference_timestamp = (
+            evaluation.get('inference_timestamp')
+            or evaluation.get('model_attribution', {}).get('inference_timestamp')
+            or datetime.now(timezone.utc).isoformat()
+        )
+
+        evaluation['model_name'] = model_name
+        evaluation['model_version'] = model_version
+        evaluation['dataset_version'] = dataset_version
+        evaluation['training_run'] = training_run
+        evaluation['inference_timestamp'] = inference_timestamp
+
         if session_id in self._local_questions:
             for q in self._local_questions[session_id]:
                 if q.get('id') == question_id:
-                    q['answer_text'] = answer_text
-                    q['evaluation_score'] = evaluation.get('score', 0)
-                    q['evaluation_feedback'] = evaluation.get('feedback', '')
-                    q['evaluation_details'] = evaluation
+                    # Immutability check: historical model results must NOT be overwritten!
+                    if q.get('evaluation_details'):
+                        if 'evaluation_history' not in q:
+                            q['evaluation_history'] = [dict(q['evaluation_details'])]
+                        q['evaluation_history'].append(dict(evaluation))
+                        q['latest_evaluation'] = evaluation
+                    else:
+                        q['answer_text'] = answer_text
+                        q['evaluation_score'] = evaluation.get('score', 0)
+                        q['evaluation_feedback'] = evaluation.get('feedback', '')
+                        q['evaluation_details'] = evaluation
+                        q['evaluation_history'] = [dict(evaluation)]
+                        q['model_name'] = model_name
+                        q['model_version'] = model_version
+                        q['dataset_version'] = dataset_version
+                        q['training_run'] = training_run
+                        q['inference_timestamp'] = inference_timestamp
+
                     if transcription_metadata:
                         q['transcript'] = answer_text
                         q['transcription_model'] = transcription_metadata.get('model_id') or transcription_metadata.get('transcription_model')
@@ -270,6 +321,22 @@ class SupabaseService:
                         q['timestamp'] = transcription_metadata.get('timestamp')
                         q['transcription_metadata'] = transcription_metadata
             self._save_cache_to_disk()
+
+        # Also store to dedicated model inferences tracking
+        eval_id = str(uuid.uuid4())
+        self.store_model_inference(
+            model_name=model_name,
+            model_version=model_version,
+            dataset_version=dataset_version,
+            training_run=training_run,
+            inference_timestamp=inference_timestamp,
+            inference_output=evaluation,
+            session_id=session_id,
+            question_id=question_id,
+            evaluation_id=eval_id,
+            source="ml",
+        )
+
         try:
             client = self._get_client()
             response_id = str(uuid.uuid4())
@@ -292,15 +359,20 @@ class SupabaseService:
             client.table('responses').insert(response_data).execute()
             
             eval_data = {
-                'id': str(uuid.uuid4()),
+                'id': eval_id,
                 'response_id': response_id,
                 'score': evaluation.get('score', 0),
                 'feedback': evaluation.get('feedback', ''),
                 'evaluation_details': evaluation,
-                'status': 'COMPLETED'
+                'status': 'COMPLETED',
+                'model_name': model_name,
+                'model_version': model_version,
+                'dataset_version': dataset_version,
+                'training_run': training_run,
+                'inference_timestamp': inference_timestamp,
             }
             client.table('evaluations').insert(eval_data).execute()
-            logger.info(f"Answer stored successfully for question {question_id}")
+            logger.info(f"Answer stored successfully for question {question_id} (model: {model_name} v{model_version})")
             return True
         except Exception as e:
             logger.warning(f"Failed to store answer remotely: {e}. Stored in local fallback cache.")
@@ -309,15 +381,76 @@ class SupabaseService:
 
     def store_code_submission(self, session_id: str, question_id: str, code: str, language: str, evaluation: Dict[str, Any]) -> bool:
         """Store code submission and evaluation in normalized tables"""
+        # Extract model version attribution fields for code evaluation
+        model_name = (
+            evaluation.get('model_name')
+            or evaluation.get('model_attribution', {}).get('model_name')
+            or 'code-risk-v1'
+        )
+        model_version = (
+            evaluation.get('model_version')
+            or evaluation.get('model_attribution', {}).get('model_version')
+            or '1.0.0'
+        )
+        dataset_version = (
+            evaluation.get('dataset_version')
+            or evaluation.get('model_attribution', {}).get('dataset_version')
+            or 'CodeXGLUE-defect-v1'
+        )
+        training_run = (
+            evaluation.get('training_run')
+            or evaluation.get('model_attribution', {}).get('training_run')
+            or 'code-risk-v1_codebert_ast_analysis'
+        )
+        inference_timestamp = (
+            evaluation.get('inference_timestamp')
+            or evaluation.get('model_attribution', {}).get('inference_timestamp')
+            or datetime.now(timezone.utc).isoformat()
+        )
+
+        evaluation['model_name'] = model_name
+        evaluation['model_version'] = model_version
+        evaluation['dataset_version'] = dataset_version
+        evaluation['training_run'] = training_run
+        evaluation['inference_timestamp'] = inference_timestamp
+
         if session_id in self._local_questions:
             for q in self._local_questions[session_id]:
                 if q.get('id') == question_id:
-                    q['code_text'] = code
-                    q['code_language'] = language
-                    q['code_evaluation_score'] = evaluation.get('score', 0)
-                    q['code_evaluation_feedback'] = evaluation.get('feedback', '')
-                    q['code_evaluation_details'] = evaluation
+                    # Immutability check: historical code evaluations must NOT be overwritten!
+                    if q.get('code_evaluation_details'):
+                        if 'code_evaluation_history' not in q:
+                            q['code_evaluation_history'] = [dict(q['code_evaluation_details'])]
+                        q['code_evaluation_history'].append(dict(evaluation))
+                        q['latest_code_evaluation'] = evaluation
+                    else:
+                        q['code_text'] = code
+                        q['code_language'] = language
+                        q['code_evaluation_score'] = evaluation.get('score', 0)
+                        q['code_evaluation_feedback'] = evaluation.get('feedback', '')
+                        q['code_evaluation_details'] = evaluation
+                        q['code_evaluation_history'] = [dict(evaluation)]
+                        q['code_model_name'] = model_name
+                        q['code_model_version'] = model_version
+                        q['code_dataset_version'] = dataset_version
+                        q['code_training_run'] = training_run
+                        q['code_inference_timestamp'] = inference_timestamp
             self._save_cache_to_disk()
+
+        eval_id = str(uuid.uuid4())
+        self.store_model_inference(
+            model_name=model_name,
+            model_version=model_version,
+            dataset_version=dataset_version,
+            training_run=training_run,
+            inference_timestamp=inference_timestamp,
+            inference_output=evaluation,
+            session_id=session_id,
+            question_id=question_id,
+            evaluation_id=eval_id,
+            source="ml",
+        )
+
         try:
             client = self._get_client()
             
@@ -342,8 +475,7 @@ class SupabaseService:
             }
             client.table('execution_runs').insert(exec_data).execute()
             
-            # Since evaluations are also expected for code, we mock a response + evaluation
-            # so standard flows don't break, or we just rely on code_submissions for analytics.
+            # Insert response + evaluation
             response_id = str(uuid.uuid4())
             client.table('responses').insert({
                 'id': response_id,
@@ -353,15 +485,20 @@ class SupabaseService:
             }).execute()
             
             client.table('evaluations').insert({
-                'id': str(uuid.uuid4()),
+                'id': eval_id,
                 'response_id': response_id,
                 'score': evaluation.get('score', 0),
                 'feedback': evaluation.get('feedback', ''),
                 'evaluation_details': evaluation,
-                'status': 'COMPLETED'
+                'status': 'COMPLETED',
+                'model_name': model_name,
+                'model_version': model_version,
+                'dataset_version': dataset_version,
+                'training_run': training_run,
+                'inference_timestamp': inference_timestamp,
             }).execute()
             
-            logger.info(f"Code submission stored successfully for question {question_id}")
+            logger.info(f"Code submission stored successfully for question {question_id} (model: {model_name} v{model_version})")
             return True
             
         except Exception as e:
@@ -385,10 +522,19 @@ class SupabaseService:
                         latest_response = q['responses'][-1]
                         q_mapped['answer_text'] = latest_response.get('response_text')
                         if latest_response.get('evaluations') and len(latest_response['evaluations']) > 0:
-                            latest_eval = latest_response['evaluations'][-1]
-                            q_mapped['evaluation_score'] = latest_eval.get('score')
-                            q_mapped['evaluation_feedback'] = latest_eval.get('feedback')
-                            q_mapped['evaluation_details'] = latest_eval.get('evaluation_details')
+                            all_evals = latest_response['evaluations']
+                            historical_eval = all_evals[0]
+                            latest_eval = all_evals[-1]
+                            q_mapped['evaluation_score'] = historical_eval.get('score')
+                            q_mapped['evaluation_feedback'] = historical_eval.get('feedback')
+                            q_mapped['evaluation_details'] = historical_eval.get('evaluation_details')
+                            q_mapped['latest_evaluation'] = latest_eval.get('evaluation_details')
+                            q_mapped['evaluation_history'] = [e.get('evaluation_details') or e for e in all_evals]
+                            q_mapped['model_name'] = historical_eval.get('model_name') or (historical_eval.get('evaluation_details', {}) or {}).get('model_name')
+                            q_mapped['model_version'] = historical_eval.get('model_version') or (historical_eval.get('evaluation_details', {}) or {}).get('model_version')
+                            q_mapped['dataset_version'] = historical_eval.get('dataset_version') or (historical_eval.get('evaluation_details', {}) or {}).get('dataset_version')
+                            q_mapped['training_run'] = historical_eval.get('training_run') or (historical_eval.get('evaluation_details', {}) or {}).get('training_run')
+                            q_mapped['inference_timestamp'] = historical_eval.get('inference_timestamp') or (historical_eval.get('evaluation_details', {}) or {}).get('inference_timestamp')
                     questions.append(q_mapped)
                 return questions
         except Exception as e:
@@ -693,29 +839,52 @@ class SupabaseService:
         predicted_skills: List[Dict[str, Any]],
         confidence: float,
         model_version: str,
-        timestamp: Optional[str] = None
+        timestamp: Optional[str] = None,
+        model_name: str = "question-skill-v1",
+        dataset_version: str = "2026.10",
+        training_run: str = "question-skill-tagger-v1_20261003T063901Z",
+        inference_timestamp: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Persist ML-derived skill metadata for a question.
         Maintains strict separation between original question metadata and ML predictions.
+        Stamps model_name, model_version, dataset_version, training_run, and inference_timestamp.
         """
+        now_iso = datetime.now(timezone.utc).isoformat()
+        inf_ts = inference_timestamp or timestamp or now_iso
         record = {
             "id": str(uuid.uuid4()),
             "question_id": question_id,
             "predicted_skills": predicted_skills,
             "confidence": float(confidence),
             "model_version": model_version,
-            "timestamp": timestamp or datetime.now(timezone.utc).isoformat(),
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "model_name": model_name,
+            "dataset_version": dataset_version,
+            "training_run": training_run,
+            "inference_timestamp": inf_ts,
+            "timestamp": timestamp or now_iso,
+            "created_at": now_iso
         }
         self._local_question_skills[question_id] = record
         self._save_cache_to_disk()
+
+        # Dedicated model inference tracking
+        self.store_model_inference(
+            model_name=model_name,
+            model_version=model_version,
+            dataset_version=dataset_version,
+            training_run=training_run,
+            inference_timestamp=inf_ts,
+            inference_output={"predicted_skills": predicted_skills, "confidence": confidence},
+            question_id=question_id,
+            source="ml",
+        )
 
         try:
             client = self._get_client()
             result = client.table("question_skill_predictions").insert(record).execute()
             if result.data:
-                logger.info(f"Question skill prediction stored remotely for question {question_id}")
+                logger.info(f"Question skill prediction stored remotely for question {question_id} (model: {model_name} v{model_version})")
                 return result.data[0]
         except Exception as e:
             logger.warning(f"Failed to store question skill prediction remotely: {e}. Stored in local fallback cache.")
@@ -733,3 +902,97 @@ class SupabaseService:
             logger.debug(f"Failed to fetch question skill prediction remotely: {e}")
 
         return self._local_question_skills.get(question_id)
+
+    def store_model_inference(
+        self,
+        model_name: str,
+        model_version: str,
+        dataset_version: str,
+        training_run: str,
+        inference_timestamp: str,
+        inference_output: Dict[str, Any],
+        session_id: Optional[str] = None,
+        question_id: Optional[str] = None,
+        response_id: Optional[str] = None,
+        evaluation_id: Optional[str] = None,
+        source: str = "ml",
+    ) -> Dict[str, Any]:
+        """
+        Store an immutable inference record attributable to a model version.
+        Guarantees that every inference in the database has an identifiable lineage.
+        """
+        inference_id = str(uuid.uuid4())
+        record = {
+            "id": inference_id,
+            "session_id": session_id,
+            "question_id": question_id,
+            "response_id": response_id,
+            "evaluation_id": evaluation_id,
+            "model_name": model_name,
+            "model_version": model_version,
+            "dataset_version": dataset_version,
+            "training_run": training_run,
+            "inference_timestamp": inference_timestamp,
+            "inference_output": inference_output,
+            "source": source,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self._local_inferences[inference_id] = record
+        self._save_cache_to_disk()
+
+        try:
+            client = self._get_client()
+            result = client.table("model_inferences").insert(record).execute()
+            if result.data:
+                return result.data[0]
+        except Exception as e:
+            logger.debug(f"Failed to store model inference remotely: {e}")
+
+        return record
+
+    def get_model_inferences(
+        self,
+        model_name: Optional[str] = None,
+        session_id: Optional[str] = None,
+        question_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve model inferences matching filters."""
+        try:
+            client = self._get_client()
+            query = client.table("model_inferences").select("*")
+            if model_name:
+                query = query.eq("model_name", model_name)
+            if session_id:
+                query = query.eq("session_id", session_id)
+            if question_id:
+                query = query.eq("question_id", question_id)
+            res = query.order("inference_timestamp").execute()
+            if res.data:
+                return res.data
+        except Exception as e:
+            logger.debug(f"Failed to query model inferences remotely: {e}")
+
+        inferences = list(self._local_inferences.values())
+        if model_name:
+            inferences = [inf for inf in inferences if inf.get("model_name") == model_name]
+        if session_id:
+            inferences = [inf for inf in inferences if inf.get("session_id") == session_id]
+        if question_id:
+            inferences = [inf for inf in inferences if inf.get("question_id") == question_id]
+        return inferences
+
+    def get_historical_evaluation(self, session_id: str, question_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves the original historical evaluation for a question in a session.
+        Guarantees that the evaluation retains its original model version regardless of newer models deployed.
+        """
+        questions = self.get_session_questions(session_id)
+        for q in questions:
+            if q.get("id") == question_id:
+                # Return original evaluation_details or first item in evaluation_history
+                if q.get("evaluation_history") and len(q["evaluation_history"]) > 0:
+                    return q["evaluation_history"][0]
+                if q.get("code_evaluation_history") and len(q["code_evaluation_history"]) > 0:
+                    return q["code_evaluation_history"][0]
+                return q.get("evaluation_details") or q.get("code_evaluation_details")
+        return None

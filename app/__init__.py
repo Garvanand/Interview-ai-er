@@ -49,11 +49,13 @@ def create_app() -> Flask:
     from app.api.logging import logging_bp
     from app.api.intelligence import intelligence_bp
     from app.api.analytics import analytics_bp
+    from app.api.ml_health import ml_health_bp
 
     app.register_blueprint(interview_bp, url_prefix="/api")
     app.register_blueprint(logging_bp, url_prefix="/api")
     app.register_blueprint(intelligence_bp, url_prefix="/api/intelligence")
     app.register_blueprint(analytics_bp, url_prefix="/api/analytics")
+    app.register_blueprint(ml_health_bp, url_prefix="/api/ml")
 
     # ── Error handlers ───────────────────────────────────────────
     @app.errorhandler(400)

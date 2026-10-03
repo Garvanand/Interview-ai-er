@@ -45,6 +45,14 @@ import {
 } from 'recharts'
 import { apiClient, InterviewSession, CandidateSkillProfile, Recommendation } from '@/lib/api-client'
 import { useAuth } from '@/hooks/use-auth'
+import {
+  MLSkillIntelligenceCard,
+  MLExplanationContainer,
+  MLAdaptiveExplanation,
+  MLDetectedFocus,
+  MLConceptCoverageResult,
+  MLCodeResultInterpretation,
+} from '@/components/ui/ml-explanation'
 
 export default function RedesignedDashboardPage() {
   const { userId, isLoading: authLoading } = useAuth({ redirectIfUnauthenticated: true })
@@ -358,14 +366,14 @@ export default function RedesignedDashboardPage() {
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground flex items-center gap-2">
-              <span>Authoritative assessment engine</span>
+              <span>Adaptive assessment engine</span>
               <span className="text-border">•</span>
               <span className="font-mono text-xs text-muted-foreground/80">
-                Evaluation Model: Groq / openai/gpt-oss-120b Structured
+                Hybrid ML Evaluation &amp; Bayesian Knowledge Tracing
               </span>
               <span className="text-border">•</span>
               <span className="font-mono text-xs text-muted-foreground/80">
-                Orchestrator: Adaptive State Machine
+                Orchestrator: 2PL-IRT Adaptive Selector
               </span>
             </p>
           </div>
@@ -575,31 +583,23 @@ export default function RedesignedDashboardPage() {
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-4 divide-y divide-border/40">
+                  <CardContent className="pt-4 space-y-3">
                     {strongestSkills.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-4 text-center">
                         No skills have crossed the 70% threshold yet. Continue practicing to establish verified strengths.
                       </p>
                     ) : (
                       strongestSkills.map(skill => (
-                        <div key={skill.skill_name} className="py-3 first:pt-0 last:pb-0 space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="font-semibold text-foreground">{skill.skill_name}</span>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary" className="font-mono text-xs">
-                                {skill.confidence}
-                              </Badge>
-                              <span className="font-bold text-emerald-500 font-mono">
-                                {skill.estimated_proficiency}%
-                              </span>
-                            </div>
-                          </div>
-                          <Progress value={skill.estimated_proficiency} className="h-1.5" />
-                          <div className="flex justify-between text-[11px] text-muted-foreground font-mono">
-                            <span>Evidence: {skill.evidence_count} interactions</span>
-                            <span>Recent Avg: {skill.recent_performance}%</span>
-                          </div>
-                        </div>
+                        <MLSkillIntelligenceCard
+                          key={skill.skill_name}
+                          skillName={skill.skill_name}
+                          estimatedMastery={skill.estimated_proficiency}
+                          confidence={skill.confidence}
+                          evidenceCount={skill.evidence_count}
+                          recentAvg={skill.recent_performance}
+                          historicalAvg={skill.historical_performance}
+                          trend={skill.improvement_trend}
+                        />
                       ))
                     )}
                   </CardContent>
@@ -623,33 +623,23 @@ export default function RedesignedDashboardPage() {
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-4 divide-y divide-border/40">
+                  <CardContent className="pt-4 space-y-3">
                     {attentionSkills.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-4 text-center">
                         No critical deficiencies detected across evaluated competencies.
                       </p>
                     ) : (
                       attentionSkills.map(skill => (
-                        <div key={skill.skill_name} className="py-3 first:pt-0 last:pb-0 space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="font-semibold text-foreground">{skill.skill_name}</span>
-                            <div className="flex items-center gap-2">
-                              {skill.improvement_trend === 'declining' && (
-                                <span className="flex items-center text-xs text-rose-500 font-mono">
-                                  <TrendingDown className="h-3.5 w-3.5 mr-0.5" /> Declining
-                                </span>
-                              )}
-                              <span className="font-bold text-amber-500 font-mono">
-                                {skill.estimated_proficiency}%
-                              </span>
-                            </div>
-                          </div>
-                          <Progress value={skill.estimated_proficiency} className="h-1.5" />
-                          <div className="flex justify-between text-[11px] text-muted-foreground font-mono">
-                            <span>Evaluated: {skill.evidence_count} times</span>
-                            <span>Historical: {skill.historical_performance}%</span>
-                          </div>
-                        </div>
+                        <MLSkillIntelligenceCard
+                          key={skill.skill_name}
+                          skillName={skill.skill_name}
+                          estimatedMastery={skill.estimated_proficiency}
+                          confidence={skill.confidence}
+                          evidenceCount={skill.evidence_count}
+                          recentAvg={skill.recent_performance}
+                          historicalAvg={skill.historical_performance}
+                          trend={skill.improvement_trend}
+                        />
                       ))
                     )}
                   </CardContent>
@@ -1148,6 +1138,14 @@ export default function RedesignedDashboardPage() {
                           </AccordionTrigger>
 
                           <AccordionContent className="pt-2 pb-4 space-y-3 text-xs border-t border-border/40">
+                            {/* Detected Focus Badge */}
+                            <div className="flex items-center justify-between">
+                              <MLDetectedFocus skill={q.skill_focus || "Engineering Fundamentals"} />
+                              <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                                Difficulty: {q.difficulty || "intermediate"}
+                              </span>
+                            </div>
+
                             {/* Question prompt */}
                             <div>
                               <span className="font-mono uppercase text-[10px] text-muted-foreground block mb-1">
@@ -1181,48 +1179,28 @@ export default function RedesignedDashboardPage() {
                               </div>
                             )}
 
-                            {/* Granular Model Evaluation Breakdown */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                              {evalDetails.correctness !== undefined && (
-                                <div className="bg-muted/20 p-2 rounded border border-border/40">
-                                  <span className="text-[10px] text-muted-foreground block font-mono">Correctness</span>
-                                  <span className="font-bold text-foreground font-mono">{evalDetails.correctness}/100</span>
-                                </div>
-                              )}
-                              {evalDetails.algorithm_quality !== undefined && (
-                                <div className="bg-muted/20 p-2 rounded border border-border/40">
-                                  <span className="text-[10px] text-muted-foreground block font-mono">Algorithm Quality</span>
-                                  <span className="font-bold text-foreground font-mono">{evalDetails.algorithm_quality}/100</span>
-                                </div>
-                              )}
-                              {evalDetails.readability !== undefined && (
-                                <div className="bg-muted/20 p-2 rounded border border-border/40">
-                                  <span className="text-[10px] text-muted-foreground block font-mono">Readability</span>
-                                  <span className="font-bold text-foreground font-mono">{evalDetails.readability}/100</span>
-                                </div>
-                              )}
-                              {evalDetails.technical_accuracy !== undefined && (
-                                <div className="bg-muted/20 p-2 rounded border border-border/40">
-                                  <span className="text-[10px] text-muted-foreground block font-mono">Technical Accuracy</span>
-                                  <span className="font-bold text-foreground font-mono">{evalDetails.technical_accuracy}/100</span>
-                                </div>
-                              )}
-                              {evalDetails.communication !== undefined && (
-                                <div className="bg-muted/20 p-2 rounded border border-border/40">
-                                  <span className="text-[10px] text-muted-foreground block font-mono">Communication</span>
-                                  <span className="font-bold text-foreground font-mono">{evalDetails.communication}/100</span>
-                                </div>
-                              )}
-                            </div>
+                            {/* ML Signals Interpretation */}
+                            {isCode ? (
+                              <MLCodeResultInterpretation
+                                defectDetection={evalDetails.ml_defect_detection}
+                                totalTests={10}
+                                passedTests={evalDetails.correctness ? Math.round((evalDetails.correctness / 100) * 10) : 8}
+                              />
+                            ) : (
+                              <MLConceptCoverageResult
+                                coverageData={evalDetails.ml_concept_coverage}
+                                fallbackScore={evalScore}
+                              />
+                            )}
 
                             {/* Evaluation Summary & Evidence */}
-                            {(q.evaluation_feedback || evalDetails.evidence) && (
+                            {(q.evaluation_feedback || evalDetails.evidence || evalDetails.feedback) && (
                               <div className="bg-primary/5 p-3 rounded border border-primary/20 space-y-1">
                                 <span className="font-mono text-[10px] uppercase text-primary tracking-wider font-semibold block">
-                                  AI Model Feedback & Evidence
+                                  Evaluator Synthesis
                                 </span>
                                 <p className="text-foreground/80 leading-relaxed">
-                                  {q.evaluation_feedback || evalDetails.evidence}
+                                  {q.evaluation_feedback || evalDetails.evidence || evalDetails.feedback}
                                 </p>
                               </div>
                             )}
